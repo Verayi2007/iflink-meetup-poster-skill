@@ -62,11 +62,19 @@ ACCENT_SINGLE_MAX = 5.0    # 单一色调上限
 ACCENT_HUES_MAX = 2        # 最多两种点缀色调
 ACCENT_MIN_SHARE = 0.8     # 低于此占比的色相当作抗锯齿噪点，不计入"一种颜色"
 
-# 禁用：参考图橙红家族（作为主色或大面积出现即判 FAIL）
-BANNED_HUE = 22            # #FE7733 的色相约 22°
-BANNED_HUE_TOL = 14
-BANNED_MAX_SHARE = 3.0
-BANNED_HEX = "#FE7733"
+# 点缀色板：只允许这两个，二选一。色相由 HEX 直接算，避免手写值漂移
+ACCENT_HEXES = [("#FE7733", "暖橙"), ("#B2A1FF", "淡紫")]
+
+
+def _hex_hue(hexv):
+    r, g, b = [int(hexv[i:i + 2], 16) / 255.0 for i in (1, 3, 5)]
+    h, _s, _v = colorsys.rgb_to_hsv(r, g, b)
+    return h * 360.0
+
+
+ACCENT_PALETTE = [(h, round(_hex_hue(h), 1), n) for h, n in ACCENT_HEXES]
+ACCENT_HUE_TOL = 13       # 色相容差（度）
+OFF_PALETTE_MAX = 1.5     # 不属于色板的异色占比上限（%，多为抗锯齿噪声）
 
 
 def dist2(c, ref):
@@ -116,7 +124,7 @@ def core_counts(im):
 def accent_stats(other, total):
     """
     把「非主色」像素按色相分箱统计，只统计有饱和度的像素（去掉抗锯齿灰边）。
-    返回 (accent_total_share, {hue_bin: share}, banned_share)
+    返回 (accent_total_share, {hue_bin: share}, off_palette_share, palette_used)
     """
     if total == 0:
         return 0.0, {}, 0.0
@@ -131,7 +139,8 @@ def accent_stats(other, total):
         pairs = list(counter.items())
 
     bins = Counter()
-    banned = 0
+    off_palette = 0
+    palette_used = Counter()
     # 主色自身的色相（荧光绿的深浅变化不该被算成"另一种点缀色"）
     core_hues = []
     for k in ("green", "divider"):
@@ -143,18 +152,26 @@ def accent_stats(other, total):
     for (r, g, b), n in pairs:
         h, s, v = colorsys.rgb_to_hsv(r / 255.0, g / 255.0, b / 255.0)
         deg = h * 360.0
-        # 橙红家族：无论饱和度高低都要抓（参考图配色就是这个）
-        if abs(((deg - BANNED_HUE + 180) % 360) - 180) <= BANNED_HUE_TOL and s >= 0.35 and v >= 0.55:
-            banned += n
         if s < 0.20 or v < 0.15:      # 近似灰 / 极暗，属于抗锯齿或线稿边缘
             continue
         if any(abs(((deg - ch + 180) % 360) - 180) <= 18 for ch in core_hues):
             continue                   # 品牌绿的同族深浅，不计入点缀色
         bins[int(deg) // 15 * 15] += n
+        # 判是否落在点缀色板内
+        hit = None
+        for hexv, hue, label in ACCENT_PALETTE:
+            if abs(((deg - hue + 180) % 360) - 180) <= ACCENT_HUE_TOL:
+                hit = (hexv, label)
+                break
+        if hit:
+            palette_used[hit[1]] += n
+        else:
+            off_palette += n
 
     accent_total = sum(bins.values()) / total * 100.0
     shares = {k: v / total * 100.0 for k, v in bins.items()}
-    return accent_total, shares, banned / total * 100.0
+    used = {k: v / total * 100.0 for k, v in palette_used.items()}
+    return accent_total, shares, off_palette / total * 100.0, used
 
 
 def pct(n, total):
@@ -199,7 +216,7 @@ def main():
 
     counts, other, total = core_counts(im)
     shares = {k: pct(v, total) for k, v in counts.items()}
-    accent_total, accent_bins, banned_share = accent_stats(other, total)
+    accent_total, accent_bins, off_share, palette_used = accent_stats(other, total)
 
     fails, warns, oks = [], [], []
 
@@ -222,29 +239,35 @@ def main():
     else:
         fails.append(f"{'纯白':<7} {shares['white']:5.1f}%  上限 {hi:.0f}%  → 反白面积过大，画面会发灰")
 
-    # ── 2. 点缀色 ──
+    # ── 2. 点缀色（只允许 #FE7733 暖橙 / #B2A1FF 淡紫）──
     active = {k: v for k, v in accent_bins.items() if v >= ACCENT_MIN_SHARE}
     hue_count = len(active)
     top = sorted(active.items(), key=lambda kv: -kv[1])[:3]
     top_txt = "、".join(f"{hue_name(k)}色 {v:.1f}%" for k, v in top) or "无"
+    used_active = {k: v for k, v in palette_used.items() if v >= 0.5}   # 0.0% 的杂色不算“用了”
+    used_txt = "、".join(f"{k} {v:.1f}%" for k, v in sorted(used_active.items(), key=lambda kv: -kv[1])) or "无"
 
-    if accent_total <= ACCENT_TOTAL_MAX and (not active or max(active.values()) <= ACCENT_SINGLE_MAX) and hue_count <= ACCENT_HUES_MAX:
-        oks.append(f"{'点缀色':<7} {accent_total:5.1f}%  {hue_count} 种（{top_txt}）上限 {ACCENT_TOTAL_MAX:.0f}%")
-    elif hue_count > ACCENT_HUES_MAX:
-        fails.append(f"{'点缀色':<7} {accent_total:5.1f}%  出现 {hue_count} 种非主色（{top_txt}）→ 超过 2 种就变成「配色杂」")
-    elif active and max(active.values()) > ACCENT_SINGLE_MAX:
-        fails.append(f"{'点缀色':<7} {accent_total:5.1f}%  单色 {max(active.values()):.1f}% 上限 {ACCENT_SINGLE_MAX:.0f}%  → 某种颜色已抢戏")
+    if accent_total > ACCENT_TOTAL_MAX:
+        fails.append(f"{'点缀色面积':<7} {accent_total:5.1f}%  上限 {ACCENT_TOTAL_MAX:.0f}%  → 异色铺太多了")
+    elif palette_used and max(palette_used.values()) > ACCENT_SINGLE_MAX:
+        fails.append(f"{'点缀色面积':<7} {max(palette_used.values()):5.1f}%  单色上限 {ACCENT_SINGLE_MAX:.0f}%  → 某种颜色已抢戏")
     else:
-        fails.append(f"{'点缀色':<7} {accent_total:5.1f}%  上限 {ACCENT_TOTAL_MAX:.0f}%  → 非主色面积过大")
+        oks.append(f"{'点缀色面积':<7} {accent_total:5.1f}%  上限 {ACCENT_TOTAL_MAX:.0f}%")
 
-    if hue_count == 0:
-        warns.append("没有任何点缀色：若本期有内容角色（如讲者话题里的意象），可以考虑加一只作为情绪点。")
-
-    # ── 3. 禁用橙红 ──
-    if banned_share > BANNED_MAX_SHARE:
-        fails.append(f"{'参考图橙红':<7} {banned_share:5.1f}%  上限 {BANNED_MAX_SHARE:.0f}%  → 照抄了 {BANNED_HEX} 家族（原作头号翻车点）")
+    if off_share > OFF_PALETTE_MAX:
+        fails.append(
+            f"{'点缀色合规':<7} 板外异色 {off_share:5.1f}%  上限 {OFF_PALETTE_MAX:.1f}%  "
+            f"→ 点缀色只能从 #FE7733 暖橙 / #B2A1FF 淡紫 里选一个（当前：{top_txt}）"
+        )
+    elif palette_used:
+        oks.append(f"{'点缀色合规':<7} {used_txt}（色板：暖橙 #FE7733 / 淡紫 #B2A1FF）")
     else:
-        oks.append(f"{'参考图橙红':<7} {banned_share:5.1f}%  上限 {BANNED_MAX_SHARE:.0f}%")
+        oks.append(f"{'点缀色合规':<7} 未使用点缀色（允许）")
+
+    if not used_active and accent_total < 0.5:
+        warns.append("没有任何点缀色：想加就指定 #FE7733 或 #B2A1FF，由模型按内容气质挑一个。")
+    elif len(used_active) > 1:
+        warns.append("同时出现了暖橙和淡紫 —— 点缀色只能二选一。")
 
     # ── 输出 ──
     line = "─" * 64
@@ -263,7 +286,7 @@ def main():
 
     verdict = "FAIL" if fails else ("WARN" if warns else "PASS")
     icon = {"PASS": "✅", "WARN": "⚠️", "FAIL": "❌"}[verdict]
-    print(f"{icon} 判定：{verdict}   （主色三色占比是硬指标；点缀色最多 2 种、合计 ≤8%）")
+    print(f"{icon} 判定：{verdict}   （主色三色占比是硬指标；点缀色只能是 #FE7733 或 #B2A1FF，二选一，≤6%）")
 
     if args.debug:
         print(line)
@@ -295,14 +318,16 @@ def main():
             "accent": {
                 "total": round(accent_total, 2),
                 "hues": {hue_name(k): round(v, 2) for k, v in active.items()},
-                "banned_orange": round(banned_share, 2),
+                "palette_used": {k: round(v, 2) for k, v in palette_used.items()},
+                "off_palette": round(off_share, 2),
             },
+            "accent_palette": [{"hex": h, "hue": u, "name": n} for h, u, n in ACCENT_PALETTE],
             "gates": {
                 "core": {k: list(v) for k, v in GATES.items()},
                 "accent_total_max": ACCENT_TOTAL_MAX,
                 "accent_single_max": ACCENT_SINGLE_MAX,
                 "accent_hues_max": ACCENT_HUES_MAX,
-                "banned_max": BANNED_MAX_SHARE,
+                "off_palette_max": OFF_PALETTE_MAX,
             },
             "fails": fails,
             "warns": warns,

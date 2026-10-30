@@ -66,7 +66,7 @@
 | `decor.preset` | `none` | 右下角点缀角色：`none` / `topic`（从嘉宾话题取意象）/ `custom`。它不是品牌吉祥物 |
 | `decor.from_guest` | 空 | `preset: topic` 时必填（E064），填嘉宾姓名 |
 | `decor.description` | 空 | `preset: custom` 时必填（E063）；`topic` 时可作为补充提示 |
-| `decor.accent_color` | **空（无默认）** | 每期自定，可不填；填了是全图唯一允许的非品牌色，面积 ≤6%、只能落在角色与涂鸦上 |
+| `decor.accent_color` | 空 | **只能 `#FE7733` 暖橙 或 `#B2A1FF` 淡紫**（E066）；不填则由模型按本期气质二选一 |
 | `layout` | `auto` | **只影响代码渲染器**（`render-poster.py`），提示词不再指定排版。可选 classic/stack/band/hero/grid/auto |
 | `layout_note` | 空 | 版面补充一句话（≤80 字），如"插画占满上半版" |
 | `decor.props` | 空 | 道具描述，如「白色纸杯，杯身竖排 IF.Link」 |
@@ -153,6 +153,7 @@
 | E063 | error | `preset: custom` 但没描述 | 补 `decor.description` |
 | E064 | error | `preset: topic` 但没给 `from_guest` | 补嘉宾姓名 |
 | E065 | error | `decor.accent_color` 不是 #RRGGBB | 改正 HEX |
+| E066 | error | 点缀色不在色板内 | 换成 #FE7733 或 #B2A1FF |
 | E070 | error | `layout` 非法 | auto/classic/stack/band/hero/grid |
 | E071 | error | `layout: hero` 但没有插画 | 换版面或打开插画 |
 | W001 | warn | 话题含易混字 | 人工查证（原作「镣铐」→「镲锜」） |

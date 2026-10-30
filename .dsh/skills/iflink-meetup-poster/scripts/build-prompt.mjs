@@ -156,6 +156,7 @@ function normalize(raw) {
     logo_variant: raw.logo_variant ?? null,
     palette: raw.palette ?? null,
     forbidden_additions: Array.isArray(raw.forbidden_additions) ? raw.forbidden_additions : [],
+    allow_legacy_accent: raw.allow_legacy_accent === true,
     notes: raw.notes ?? "",
   };
 
@@ -266,6 +267,13 @@ function validate(spec) {
   }
   if (isStr(dec.accent_color) && !HEX_RE.test(dec.accent_color)) {
     err("E065", "decor.accent_color", "accent_color 必须是 #RRGGBB 形式");
+  }
+  if (isStr(dec.accent_color) && !ACCENT_CHOICES.some((c) => c.hex.toLowerCase() === dec.accent_color.toLowerCase())) {
+    if (spec.allow_legacy_accent) {
+      warn("W017", "decor.accent_color", `点缀色 ${dec.accent_color} 不在色板内（仅 #FE7733 / #B2A1FF）—— 已按样例保留历史配色，新图请改用色板色`);
+    } else {
+      err("E066", "decor.accent_color", `点缀色只能是 #FE7733 暖橙 或 #B2A1FF 淡紫；当前是 ${dec.accent_color}`);
+    }
   }
   if (dec.preset !== "none" && !isStr(dec.accent_color) && dec.preset === "custom") {
     warn("W012", "decor.accent_color", "自定义角色没指定点缀色 HEX，模型容易自由发挥；要指定就写一个 HEX（不写＝不引入任何异色）");
@@ -483,12 +491,11 @@ function whitelist(spec) {
 function accentLine(spec) {
   const d = spec.decor;
   if (d.preset === "none" && !isStr(d.accent_color)) {
-    return "本图不使用点缀色：全图只有上面的五个主色，不得引入任何第六种颜色";
+    return "点缀色：本图可以不用；若使用，只能从 #FE7733 暖橙 / #B2A1FF 淡紫 里选一个";
   }
-  const hex = isStr(d.accent_color) ? d.accent_color : "由角色描述决定";
   return (
-    `点缀色 ${hex} —— 全图只允许这一种非品牌色，面积 ≤ 6%，` +
-    "只能用在右下角角色/道具与 2–3 个小涂鸦上；禁止用于文字、标题带、副标题带、姓名 chip、图标底"
+    `点缀色：只能从 #FE7733 暖橙 / #B2A1FF 淡紫 里选一个（当前偏好 ${accentPickText(spec)}），面积 ≤ 6%，` +
+    "只能用在角色/道具与 2–3 个小涂鸦上；禁止用于文字、标题带、副标题带、姓名 chip、图标底"
   );
 }
 
@@ -651,6 +658,20 @@ function compactPrompt(spec) {
  * 自然版：只学参考图的**风格**，不规定版面结构，配图从嘉宾内容里长出来。
  * 规格版（坐标/百分比）留给"精确复刻"和"渲染对位"。
  */
+/** 点缀色只能二选一：暖橙 #FE7733 / 淡紫 #B2A1FF；由模型按本期气质挑 */
+const ACCENT_CHOICES = [
+  { hex: "#FE7733", name: "暖橙", vibe: "热闹、造物、吃喝、动手" },
+  { hex: "#B2A1FF", name: "淡紫", vibe: "思考、影像、声音、夜" },
+];
+
+function accentPickText(spec) {
+  if (isStr(spec.decor.accent_color)) {
+    const hit = ACCENT_CHOICES.find((c) => c.hex.toLowerCase() === spec.decor.accent_color.toLowerCase());
+    return hit ? `${hit.hex} ${hit.name}` : spec.decor.accent_color;
+  }
+  return ACCENT_CHOICES.map((c) => `${c.hex} ${c.name}（适合${c.vibe}）`).join("，或");
+}
+
 function briefPrompt(spec) {
   const topicHints = spec.guests
     .map((g) => `「${g.topic}」`)
@@ -721,9 +742,10 @@ function briefPrompt(spec) {
   lines.push(
     "",
     "【硬要求】",
-    "· 颜色只用：奶油白 #F6F6F1、黑 #242021、荧光绿 #B1FA63" +
-      (isStr(spec.decor.accent_color) && spec.decor.preset !== "none" ? `，外加上面那一个点缀色 ${spec.decor.accent_color}` : ""),
-    "  —— 不要橙红（#FE7733 尤其不要），不要渐变、不要 3D、不要投影光效、不要第二种异色。",
+    "· 颜色只用：奶油白 #F6F6F1、黑 #242021、荧光绿 #B1FA63，外加一个点缀色：" +
+      accentPickText(spec),
+    "  —— 点缀色只能从 #FE7733 暖橙 / #B2A1FF 淡紫 里选一个，不许出现第三种彩色；",
+    "    不要渐变、不要 3D、不要投影光效。",
     "· Logo 和 slogan 是现成图形，别重画、别改字重字距；slogan 里 IFs 是复数、Dots 首字母大写。",
     "· 除了上面列的文字，一个字都别加：不要主办方、不要二维码、不要报名链接、不要联系方式。",
     "· 不要把参考图里的文字、角色或分区带过来。",
@@ -824,7 +846,7 @@ async function writePromptPack(dir, { spec }) {
     ["G1", "福利", `逐字等于「${spec.perks_text}」`],
     ["G1", "Slogan", `「${spec.slogan}」`],
     ["G2", "三色占比", "奶油白 65–75% / 墨色 8–12% / 荧光绿 8–12%"],
-    ["G2", "异色", "无橙红；点缀色 ≤6% 且只有一种"],
+    ["G2", "异色", "点缀色只能是 #FE7733 / #B2A1FF，二选一、≤6%"],
     ["G3", "层级", "缩到手机 1/3，第一眼是活动名"],
     ["G4", "字体", "无衬线、同族、层级清晰"],
     ["G5", "图形语言", "直角块、粗描边、手绘感、无渐变/3D"],

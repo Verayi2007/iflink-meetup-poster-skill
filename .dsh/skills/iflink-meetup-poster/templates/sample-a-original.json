@@ -26,8 +26,10 @@
     "from_guest": "罗丽",
     "description": "圆滚滚的黄色小奶龙，短手短脚，坐在地上捧着一杯奶茶",
     "accent_color": "#FED754",
+    "_注释_accent": "原作是暖黄（呼应奶龙话题）。新规范只允许 #FE7733 / #B2A1FF，此样例按历史配色保留，故 allow_legacy_accent=true。",
     "props": "白色纸杯，杯身竖排黑字「IF.Link」，插一根吸管"
   },
+  "allow_legacy_accent": true,
   "slogan": "Link the IFs, Connect the Dots",
   "variant": "cream",
   "canvas": "1024x1536"

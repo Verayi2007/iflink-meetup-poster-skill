@@ -119,20 +119,20 @@ HTML 里就五节：**先上传 → 复制提示词 → 出图之后 → 出问�
 
 | 🔒 锁死 | 🔓 放开 |
 | --- | --- |
-| 三主色 + 单一点缀色、占比 | 分区与构图（左右 / 上下 / 满版 / 网格） |
+| 三主色 + 点缀色二选一、占比 | 分区与构图（左右 / 上下 / 满版 / 网格） |
 | 绿块压黑字、黑块压白字的**色块语法** | 插画占多大、压不压字 |
 | 字号层级（按画布高度的百分比） | 嘉宾横排还是竖排、几列 |
 | 手绘质感：平涂、4–5px 描边、收口略抖、无渐变 | 留白位置；配图内容（从嘉宾话题取材） |
 
 <div align="center">
 
-| <img src="https://img.shields.io/badge/-F6F6F1-F6F6F1?style=flat-square" height="20" /> 奶油白 65–75% | <img src="https://img.shields.io/badge/-242021-242021?style=flat-square" height="20" /> 深黑灰 8–12% | <img src="https://img.shields.io/badge/-B1FA63-B1FA63?style=flat-square" height="20" /> 荧光绿 8–12% | <img src="https://img.shields.io/badge/-C9A6FF-C9A6FF?style=flat-square" height="20" /> 点缀色 ≤6% |
+| <img src="https://img.shields.io/badge/-F6F6F1-F6F6F1?style=flat-square" height="20" /> 奶油白 65–75% | <img src="https://img.shields.io/badge/-242021-242021?style=flat-square" height="20" /> 深黑灰 8–12% | <img src="https://img.shields.io/badge/-B1FA63-B1FA63?style=flat-square" height="20" /> 荧光绿 8–12% | <img src="https://img.shields.io/badge/-FE7733-FE7733?style=flat-square" height="20" /> 暖橙 <b>或</b> <img src="https://img.shields.io/badge/-B2A1FF-B2A1FF?style=flat-square" height="20" /> 淡紫 ≤6% |
 | --- | --- | --- | --- |
 
 </div>
 
-点缀色是"这一期"的味道（比如讲奶龙那期用了暖黄），只能出现一种、只落在小角色与涂鸦上。
-参考图的橙红 `#FE7733` 不算点缀色 —— 那是照抄。
+点缀色是"这一期"的味道，**只有两个选项**：`#FE7733` 暖橙（热闹、造物、吃喝）或 `#B2A1FF` 淡紫（思考、影像、声音）。
+二选一、≤6%、只落在小角色与涂鸦上；不指定就让模型按主题挑。
 
 ---
 

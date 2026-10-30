@@ -190,8 +190,10 @@ def paste_illustration(img, box, path):
 def render(spec, illustration=None):
     img = Image.new("RGB", (W, H), CREAM)
     d = ImageDraw.Draw(img)
-    # 点缀色没填就用品牌绿（不引入任何"默认异色"）
-    accent = (spec.get("decor", {}).get("accent_color") or "#B1FA63")
+    # 点缀色：spec 没填时，从色板里按活动名哈希确定性挑一个（每期不同，可复现）
+    palette = ["#FE7733", "#B2A1FF"]
+    pick = spec.get("decor", {}).get("accent_color") or palette[sum(map(ord, spec.get("event_name", ""))) % 2]
+    accent = pick
     accent = tuple(int(accent[i:i + 2], 16) for i in (1, 3, 5))
 
     # ── 页眉 ──

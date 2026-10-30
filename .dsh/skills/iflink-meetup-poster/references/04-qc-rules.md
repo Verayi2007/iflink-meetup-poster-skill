@@ -47,7 +47,7 @@ node scripts/build-prompt.mjs build/spec.json --check-only   # 输入侧拦截
 | **点缀色合计** | **≤ 8%** | 3.1% |
 | **单一点缀色** | **≤ 5%** | 3.0%（暖黄） |
 | **点缀色种类** | **≤ 2 种** | 1 种 |
-| 参考图橙红 `#FE7733` 家族 | ≤ 3% | 0.0% |
+| 点缀色须落在 `#FE7733` / `#B2A1FF` | 板外异色 ≤ 1.5% | — |
 
 ```bash
 python scripts/check-palette.py build/poster.png --debug
