@@ -193,7 +193,19 @@ python scripts/check-palette.py build/poster.png        # G2
 
 所有模板见 **[references/03-prompt-playbook.md](references/03-prompt-playbook.md)**，症状 → 根因 → 修法对照见 **[references/05-exception-playbook.md](references/05-exception-playbook.md)**。
 
-### Phase 6 · 定稿交付
+### Phase 6 · 贴牌 → 交付
+
+**拿到成图的第一件事不是验收，是贴 Logo**：
+
+```bash
+python scripts/brand-stamp.py <成图.png> --out <成图-branded.png>
+```
+
+- 生图模型画不准 Logo（字重、字距、比例总偏），所以**不让它画**：脚本用画面底色盖掉页眉那条，再贴官方 PNG。
+- 自动按底色选深浅版；Logo 高 = 画布高 2.16%、左边距 5.27%；slogan 右对齐、与 Logo 垂直居中。
+- slogan 默认用文字绘制，大小写按规范（`IFs` 复数、`Dots` 大写）—— 品牌库那张标准图里是小写 `dots.`，与规范不一致，故不默认使用。
+
+贴完再进质检。
 
 1. 命名：`IFLink-Meetup_<YYYYMMDD>_<主题关键词>_v<终版号>.png`，例：`IFLink-Meetup_20261031_AI创作交流_v6.png`。
 2. 同时留档：`spec.json`、`prompt.md`、`check-palette.py` 报告、终稿 PNG。四件套齐全才算交付。
