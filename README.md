@@ -310,7 +310,7 @@ $ python scripts/doctor.py
 
 **下一次办活动，别再从头调一遍提示词。**
 
-<sub>建立在一次真实的生产对话之上 · IF.Link 品牌组 · 2026</sub>
+<sub>建立在一次真实的生产对话之上 · IF.Link 活动组 · 2026</sub>
 
 <code>Link the IFs, Connect the Dots</code>
 
