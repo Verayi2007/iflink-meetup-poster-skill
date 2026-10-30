@@ -727,7 +727,7 @@ function briefPrompt(spec) {
     "· 除了上面列的文字，一个字都别加：不要主办方、不要二维码、不要报名链接、不要联系方式。",
     "· 不要把参考图里的文字、角色或分区带过来。",
     "",
-    "先出一张看看；如果哪块不通，我再让你局部改。",
+    "最后按不同排版给我三版海报：三版的构图要明显不同（比如一版左右分栏、一版上下分块、一版满版压字），画风保持一致，我挑一版再细调。",
   );
 
   return lines.join("\n");
@@ -892,6 +892,7 @@ async function writePromptPack(dir, { spec }) {
   <button onclick="copyPrompt()">复制提示词</button>
   <span class="tip" id="tip">点一下即可复制，粘进 ChatGPT 发送</span>
 </div>
+<div class="note">发送后模型会给 <strong>3 版不同排法</strong>，挑一版；不满意的局部，用下面第四节的话术改，不要让它整版重来。</div>
 <pre id="prompt">${esc(prompt)}</pre>
 
 <h2>三、出图之后（两条命令）</h2>

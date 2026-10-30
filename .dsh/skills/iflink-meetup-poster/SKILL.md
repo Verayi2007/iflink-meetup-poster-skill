@@ -152,7 +152,7 @@ node scripts/build-prompt.mjs build/spec.json --out build/prompt.md --pack build
 
 1. 上传包里那三张：`01_参考图.png`、`02_Logo.svg`、`03_Slogan.png`。
 2. 粘贴 md 里「二、把下面整段粘进去」的**唯一一段**提示词。
-3. 出图后先 `brand-stamp.py` 贴正 Logo 与 slogan，再进 Phase 4 质检。
+3. 模型会一次给 **3 版不同排法**，挑一版；再 `brand-stamp.py` 贴正 Logo 与 slogan，进 Phase 4 质检。
 
 > 参考图的作用是**提供"干净利落的手绘风"这一层质感**，不是提供分区。**绝对不要在提示词里指定"左边嘉宾、右边配图"这类位置** —— 一旦指定，模型必然画成模板。
 
