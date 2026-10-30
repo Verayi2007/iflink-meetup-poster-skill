@@ -67,6 +67,8 @@
 | `decor.from_guest` | 空 | `preset: topic` 时必填（E064），填嘉宾姓名 |
 | `decor.description` | 空 | `preset: custom` 时必填（E063）；`topic` 时可作为补充提示 |
 | `decor.accent_color` | 空 | 全图唯一允许的非品牌色，HEX；面积 ≤6% |
+| `layout` | `auto` | 版面：`classic` 左文右图 / `stack` 上图下文 / `band` 中间横带 / `hero` 大图主角 / `grid` 网格卡片 / `auto` 按人数自动 |
+| `layout_note` | 空 | 版面补充一句话（≤80 字），如"插画占满上半版" |
 | `decor.props` | 空 | 道具描述，如「白色纸杯，杯身竖排 IF.Link」 |
 | `slogan` | `Link the IFs, Connect the Dots` | **锁定**，改动即 E031（除非 `allow_slogan_override: true`） |
 | `allow_slogan_override` | `false` | 显式授权后才允许改 slogan |
@@ -151,6 +153,8 @@
 | E063 | error | `preset: custom` 但没描述 | 补 `decor.description` |
 | E064 | error | `preset: topic` 但没给 `from_guest` | 补嘉宾姓名 |
 | E065 | error | `decor.accent_color` 不是 #RRGGBB | 改正 HEX |
+| E070 | error | `layout` 非法 | auto/classic/stack/band/hero/grid |
+| E071 | error | `layout: hero` 但没有插画 | 换版面或打开插画 |
 | W001 | warn | 话题含易混字 | 人工查证（原作「镣铐」→「镲锜」） |
 | W002 | warn | 话题 36–42 字 | 成图后逐字核对 |
 | W003 | warn | 主张 > 26 字 | 会换行破坏单行结构 |

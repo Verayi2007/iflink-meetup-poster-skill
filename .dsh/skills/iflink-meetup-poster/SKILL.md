@@ -93,6 +93,7 @@ python scripts/check-palette.py build/poster.png                       # 成图�
 | `decor.from_guest` | — | `preset: topic` 时必填，填嘉宾姓名 |
 | `decor.accent_color` | 空 | 全图唯一允许的非品牌色（HEX），面积 ≤6% |
 | `decor.props` | 空 | 道具，如「白色纸杯，杯身竖排 IF.Link」 |
+| `layout` | `auto` | 版面 6 选 1：`classic` 左文右图 / `stack` 上图下文 / `band` 中间横带 / `hero` 大图主角 / `grid` 网格卡片 / `auto` 自动 |
 | `slogan` | `Link the IFs, Connect the Dots` | 锁定；改需 `allow_slogan_override` |
 | `variant` | `cream` | 奶油白底 / `dark` 黑底（自动切 Logo 版本） |
 | `canvas` | `1024x1536` | 或 `1536x2304` |
@@ -270,7 +271,8 @@ iflink-meetup-poster/
 5. **内容锁**：姓名、时间、地点、话题一字不改，不替用户"优化"表达；**也不要拿任何一期的内容当默认值写进模板**。
 6. **点缀角色不是品牌吉祥物**：它必须从本期内容里长出来（某位嘉宾的话题意象）或由用户自定义；没有内容依据就不要画。
 7. **元素白名单**：只允许出现 页眉 / 标题带 / 副标题带 / 一句主张 / 时间地点 / 嘉宾区 / 福利区 / 插画 / 点缀角色。没有联合主办就不要有联合主办。
-8. **可复现**：任何时候拿到 `spec.json`，都应能重建同一张海报。
+8. **版面不是死的**：系列感来自色彩、色块标题语法、字号层级、手绘质感这四样，不来自分区。换版面可以，换这四样不行。
+9. **可复现**：任何时候拿到 `spec.json`，都应能重建同一张海报。
 
 ## 10. 谁来真正出图（重要）
 

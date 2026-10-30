@@ -41,9 +41,73 @@ const CONFUSABLES = ["镲", "锜", "镶", "铑", "镴"];
 const GENDERS = ["female", "male", "other"];
 const ILLUSTRATION_SCENES = ["sit-around", "whiteboard", "collab", "none", "custom"];
 const DECOR_PRESETS = ["none", "topic", "custom"];
+const LAYOUTS = ["auto", "classic", "stack", "band", "hero", "grid"];
 
 const GENDER_LABEL = { female: "女", male: "男", other: "不限" };
 const HEX_RE = /^#[0-9A-Fa-f]{6}$/;
+
+/* ────────────────────────────── 版式库（视觉语言共享，分区可变） ────────────────────────────── */
+
+const LAYOUT_DEFS = {
+  classic: {
+    label: "A · 左文右图",
+    body: [
+      "· 左侧 50–55% 是信息栏：标题组 → 时间地点 → 嘉宾纵向列表 → 左下角福利笔刷块。",
+      "· 右侧 45–50% 是一整幅手绘叙事插画，可以溢出到画布边缘。",
+      "· 标题组（绿色主标题块 + 深黑副标题块）横跨左上，不进入右侧插画区。",
+      "· 这是最稳的版式，适合 3–4 位嘉宾。",
+    ],
+  },
+  stack: {
+    label: "B · 上图下文",
+    body: [
+      "· 上 45–55% 是整宽的插画场景带：插画横向铺满，标题组以绿块+黑块的形式压在插画图上或紧贴其下缘。",
+      "· 下 45% 是信息区：时间地点一行两列，嘉宾做成 2 列网格（左列 1/2 位，右列 3/4 位），每格「圆头像 + 绿 chip 姓名 + 一行话题」。",
+      "· 福利笔刷块放在右下角，与插画区对角呼应。",
+      "· 适合 5 位嘉宾、信息量偏大的一期。",
+    ],
+  },
+  band: {
+    label: "C · 中间插画横带",
+    body: [
+      "· 上 30%：页眉 + 标题组（绿块主标题、黑块副标题）。",
+      "· 中 28–32%：一整条横向插画带，左右顶到安全边距，带子上下各留一条明显空白。",
+      "· 下 35%：时间地点 + 嘉宾（单列或双列）+ 福利。",
+      "· 视觉动线是「上—中—下」三段式，插画带是全身的呼吸口。",
+      "· 适合嘉宾 2–3 位、想要更松弛气质的一期。",
+    ],
+  },
+  hero: {
+    label: "D · 大图主角",
+    body: [
+      "· 手绘插画铺满整张画布（或占 75% 以上），构图饱满、有人物互动。",
+      "· 信息不排版成独立区域，而是**叠在大图上**：标题组压在画面中上部，时间/地点/嘉宾/福利以奶油白 #F6F6F1 的实心块或紧凑文本块压在画面下三分之一，保证可读性。",
+      "· 这些奶油白块也要是直角或笔刷边缘，不能做成毛玻璃/半透明卡片。",
+      "· 适合 1–2 位嘉宾、主题强、想要海报感更强的一期。",
+    ],
+  },
+  grid: {
+    label: "E · 网格卡片",
+    body: [
+      "· 标题组照常占顶部；时间地点压成一行。",
+      "· 嘉宾做成 2×2 或 2×3 的卡片网格：每格一张圆形头像 + 绿 chip 姓名 + 话题，格子之间用极浅绿细线分隔。",
+      "· 插画缩到右上角或右下角约 30% 的区域内，作为点缀而非主体。",
+      "· 适合 4–6 位嘉宾、需要强调「阵容」的一期。",
+    ],
+  },
+};
+
+const LAYOUT_AUTO = {
+  // 依据嘉宾数与信息密度自动挑一个，保证不开天窗
+  pick(spec) {
+    const n = spec.guests.length;
+    if (spec.illustration.scene === "none") return "grid";
+    if (n <= 2) return "hero";
+    if (n <= 4) return "classic";
+    if (n === 5) return "stack";
+    return "grid";
+  },
+};
 
 /* ────────────────────────────── 校验 ────────────────────────────── */
 
@@ -82,6 +146,8 @@ function normalize(raw) {
       accent_color: d.accent_color ?? "",
       props: d.props ?? "",
     },
+    layout: raw.layout ?? "auto",                // auto | classic | stack | band | hero | grid
+    layout_note: raw.layout_note ?? "",
     slogan: raw.slogan ?? BRAND.slogan,
     allow_slogan_override: raw.allow_slogan_override === true,
     variant: raw.variant ?? "cream",
@@ -204,6 +270,23 @@ function validate(spec) {
     warn("W012", "decor.accent_color", "自定义角色没指定点缀色 HEX，模型容易自由发挥；建议写明如 #FED754");
   }
 
+  /* —— 版式 —— */
+  if (!LAYOUTS.includes(spec.layout)) {
+    err("E070", "layout", `版式只能是 ${LAYOUTS.join(" / ")}`);
+  }
+  if (spec.layout === "hero" && spec.illustration.scene === "none") {
+    err("E071", "layout", "layout=hero 需要插画，但 illustration.scene=none，二者冲突");
+  }
+  if (spec.layout === "hero" && spec.guests.length >= 5) {
+    warn("W014", "layout", "hero 版式叠字区域小，5 位以上嘉宾信息会挤，建议改用 stack 或 grid");
+  }
+  if (spec.layout === "classic" && spec.guests.length >= 5) {
+    warn("W015", "layout", "classic 版式单列嘉宾放 5 位以上会偏挤，建议改用 stack/grid");
+  }
+  if (len(spec.layout_note) > 80) {
+    warn("W016", "layout_note", "版式补充说明超过 80 字，建议只写一句构图要求");
+  }
+
   /* —— 色彩锁 —— */
   if (spec.palette) {
     const ok = typeof spec.palette === "object" && spec.palette.green === BRAND.green && spec.palette.ink === BRAND.ink;
@@ -265,12 +348,29 @@ const guestLines = (spec) =>
 function guestLayout(spec) {
   const n = spec.guests.length;
   if (n <= 2) {
-    return `${n} 位嘉宾纵向排列（疏排版式：单条节距 ≥ 180px、头像直径 112px、姓名 chip 32px、话题 29px 最多 3 行）：`;
+    return `${n} 位嘉宾（疏排：头像直径约画布宽 11%、姓名 chip 32px 级、话题最多 3 行）：`;
   }
   if (n <= 4) {
-    return `${n} 位嘉宾纵向排列（标准版式：单条节距 140–190px、头像直径 96px、姓名 chip 30px、话题 27px 最多 3 行，节距随话题行数自适应）：`;
+    return `${n} 位嘉宾（标准：头像约 9.5%、姓名 chip 30px 级、话题最多 3 行）：`;
   }
-  return `${n} 位嘉宾纵向排列（紧凑版式：单条节距 110–140px、头像直径 76px、姓名 chip 26px、话题 24px 最多 2 行，禁止挤压重叠）：`;
+  return `${n} 位嘉宾（紧凑：头像约 7.5%、姓名 chip 26px 级、话题最多 2 行，禁止挤压重叠）：`;
+}
+
+/** 解析实际使用的版式（auto 按嘉宾数与插画有无自动选） */
+function resolveLayout(spec) {
+  if (spec.layout !== "auto") return spec.layout;
+  return LAYOUT_AUTO.pick(spec);
+}
+
+function layoutBlock(spec) {
+  const key = resolveLayout(spec);
+  const def = LAYOUT_DEFS[key];
+  const lines = [...def.body];
+  if (key === "stack" || key === "grid") {
+    lines.push(`· 本图共 ${spec.guests.length} 位嘉宾，网格排布要留足空隙，姓名 chip 不得压到相邻卡片。`);
+  }
+  if (isStr(spec.layout_note)) lines.push(`· 补充构图要求：${spec.layout_note}`);
+  return lines.join("\n");
 }
 
 function oneLinerBlock(spec) {
@@ -406,6 +506,9 @@ function render(template, spec, meta) {
     GUEST_COUNT: String(spec.guests.length),
     GUESTS_BLOCK: guestLines(spec),
     GUEST_LAYOUT: guestLayout(spec),
+    LAYOUT_NAME: LAYOUT_DEFS[resolveLayout(spec)].label,
+    LAYOUT_LABEL: `${LAYOUT_DEFS[resolveLayout(spec)].label}${spec.layout === "auto" ? "（auto 自动选）" : ""}`,
+    LAYOUT_BODY: layoutBlock(spec),
     PERKS_TITLE: spec.perks_title,
     PERKS_TEXT: spec.perks_text,
     SLOGAN: spec.slogan,
@@ -464,34 +567,54 @@ function compactPrompt(spec) {
   const g = spec.guests
     .map(
       (guest, i) =>
-        `· 嘉宾${i + 1}：${guest.name}（${GENDER_LABEL[guest.gender]}）—— ${guest.topic}`,
+        `· ${guest.name}｜${guest.topic}`,
     )
     .join("\n");
 
   const lines = [
-    "以这张海报的版式和画风为模板，重新做一张全新的活动海报：把画面里所有文字和人物信息全部替换成下面的新内容，版式结构、色块位置、手绘风格保持不变。",
+    "借用这张海报的画风、配色与字体气质，做一张全新的活动海报。版面可以按下面的方案重新组织，不必照抄参考图的分区；但画风（手绘线稿、粗黑块面、荧光绿点缀）和文字的层级关系必须保持一致。",
+    "",
+    `【本期版式：${LAYOUT_DEFS[resolveLayout(spec)].label}】`,
+    ...LAYOUT_DEFS[resolveLayout(spec)].body.map((l) => l.replace(/^·\s*/, "· ")),
+  ];
+  if (isStr(spec.layout_note)) lines.push(`· ${spec.layout_note}`);
+  lines.push(
     "",
     "【必须逐字出现的文字】",
     `· 左上角：${spec.event_name.includes("IF.") ? "IF.Link" : spec.event_name}`,
     `· 右上角一行小字：${spec.slogan}`,
     `· 绿色色块上的大标题：${spec.event_name}`,
     `· 黑色色块上的副标题：${spec.kicker}`,
-  ];
+  );
   if (isStr(spec.one_liner)) lines.push(`· 副标题下方一行小字：${spec.one_liner}`);
   lines.push(
     `· 时间：${spec.date_time}`,
     `· 地点：${spec.location}`,
-    `· 栏目标题：${spec.guest_section_title}`,
+    `· 栏目标题：${spec.guest_section_title}（嘉宾逐条列出，不要写「嘉宾1」「嘉宾2」这类序号前缀）`,
     g,
     `· 左下角：${spec.perks_title} —— ${spec.perks_text}`,
   );
 
+  const avatarLine = spec.guests
+    .map(
+      (guest) =>
+        `${guest.name} 画${GENDER_LABEL[guest.gender] === "不限" ? "中性" : GENDER_LABEL[guest.gender] + "性"}${guest.hair ? `（${guest.hair}）` : ""}`,
+    )
+    .join("；");
+  lines.push("", "【头像要求（只用于画人，不要把这些字写上画面）】", avatarLine + "。");
+  lines.push(
+    "",
+    "【拼写警示】品牌名写作 IF.Link —— 字母 IF，一个英文句点「.」，再跟 Link；不是 IF-Link、不是 IF Link。",
+    "",
+    "【画风】手绘线稿、粗黑块面、荧光绿点缀、奶油白纸张底、轻微印刷颗粒感；无渐变、无 3D、无写实人脸。",
+  );
+
   const sceneText = {
-    "sit-around": "右侧手绘插画换成几个人围坐交流",
-    whiteboard: "右侧手绘插画换成一个人在白板前讲解、其余人坐着听",
-    collab: "右侧手绘插画换成几个人围在桌前协作",
-    none: "右侧留白，只放两三个手绘小涂鸦",
-    custom: `右侧手绘插画换成：${spec.illustration.description}`,
+    "sit-around": "手绘插画：几个人围坐交流",
+    whiteboard: "手绘插画：一个人在白板前讲解、其余人坐着听",
+    collab: "手绘插画：几个人围在桌前协作",
+    none: "不画插画，只用两三个手绘小涂鸦做呼吸点",
+    custom: `手绘插画：${spec.illustration.description}`,
   };
   lines.push("", "【画面要求】", `${sceneText[spec.illustration.scene] ?? sceneText["sit-around"]}。`);
 
@@ -558,6 +681,7 @@ function printReport(spec, list) {
   console.log(
     `插画：${spec.illustration.scene} ｜ 点缀角色：${decorLabel} ｜ 主张行：${isStr(spec.one_liner) ? "有" : "无"}`,
   );
+  console.log(`版式：${LAYOUT_DEFS[resolveLayout(spec)].label}（spec: ${spec.layout}）`);
   console.log(`主色锁：${BRAND.green} / ${BRAND.ink} / ${BRAND.cream}  [已锁定]`);
   console.log(line);
 
