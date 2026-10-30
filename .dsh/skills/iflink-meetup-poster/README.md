@@ -63,7 +63,7 @@ node scripts/new-spec.mjs --blank --out build/spec.json
 node scripts/build-prompt.mjs templates/sample-b-product.json --out build/demo.md   # 看效果
 ```
 
-依赖：Node ≥ 18（零 npm 依赖）；Python 3 + Pillow（仅色彩闸门需要）。
+依赖：Node ≥ 18（零 npm 依赖）；Python ≥ 3.9 + Pillow。装好后先跑 `python scripts/doctor.py` 自检（字体 / 资产 / 桌面可写）。
 
 ## 目录
 
@@ -120,10 +120,11 @@ iflink-meetup-poster/
 
 ## 版本
 
-`v1.9.0` · 主色锁 `#B1FA63` / `#242021` · 画布 1024×1536（2:3）
+`v2.0.0` · 主色锁 `#B1FA63` / `#242021` · 画布 1024×1536（2:3）
 
 - v1.0.0 首版（原作复刻）
 - v1.1.0 内容与风格分离：移除模板中的活动硬编码；新增 `new-spec.mjs`（交互 / 填表 / 骨架）、插画场景预设、按嘉宾数自适应版式、`one_liner` 可空
+- v2.0.0 可分发：新增 `scripts/doctor.py` 环境自检、`scripts/fonts.py` 跨平台字体（Win/mac/Linux）、LICENSE（代码 MIT / 品牌资产另议）；SKILL.md 新增「0.3 给别人用之前」安装与自检说明
 - v1.9.0 改为 agent 引导式交付：SKILL.md 新增「0.2 使用方式」五步话术；`--pack` 不带路径时自动落到**真实桌面**（读注册表 User Shell Folders，兼容桌面重定向）；桌面不可写时自动退回 build/ 并报路径
 - v1.8.2 提示词结尾改为"按不同排版给我三版"：一段提示词出 3 版不同构图，挑一版再局部修（不是三份提示词）
 - v1.8.1 提示词包改为自包含 HTML：Windows 无 `.md` 关联导致双击只能开 VS Code，改 HTML 后双击即浏览器打开，并在页面内提供一键复制提示词

@@ -36,18 +36,22 @@ GREEN = (177, 250, 99)
 WHITE = (255, 255, 255)
 DIVIDER = (220, 239, 192)
 
-FONT_DIR = "C:/Windows/Fonts"
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from fonts import cjk_font
+
+_cache = {}
 
 
-def font(name, size):
-    path = os.path.join(FONT_DIR, name)
-    if os.path.exists(path):
-        return ImageFont.truetype(path, size)
-    return ImageFont.load_default()
+def font(size, bold=True):
+    """同一字号只加载一次；bold 目前用同一套中文字体（多数自带 Bold 字形）"""
+    key = size
+    if key not in _cache:
+        _cache[key] = cjk_font(size)[0]
+    return _cache[key]
 
 
-F_BOLD = lambda s: font("msyhbd.ttc", s)   # noqa: E731
-F_REG = lambda s: font("msyh.ttc", s)      # noqa: E731
+F_BOLD = lambda s: font(s)   # noqa: E731
+F_REG = lambda s: font(s)    # noqa: E731
 
 
 def text_w(draw, txt, f):

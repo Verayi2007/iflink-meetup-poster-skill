@@ -116,6 +116,44 @@ node scripts/build-prompt.mjs build/spec-16.json --pack
 - 不要要求用户自己跑命令、自己改 JSON
 - 不要一次抛 8 个问题
 - 不要在用户还没确认信息时就生成包
+## 0.3 给别人用之前（30 秒自检）
+
+别人拿到这个 Skill，只需要三样东西：**Node ≥ 18、Python ≥ 3.9 + Pillow、一个能生图的模型**。
+先跑自检，把环境问题挡在前面：
+
+```bash
+python scripts/doctor.py
+```
+
+输出全绿就能用：
+
+```
+✅ Python 3.12  ✅ Pillow 12.3  ✅ Node v22
+✅ 中文字体（Win 雅黑 / mac 苹方 / Linux Noto CJK）
+✅ 品牌资产 4 个齐全
+✅ 桌面可写 <真实桌面路径>
+```
+
+红了就按提示修，最常见三项：
+
+| 症状 | 修法 |
+| --- | --- |
+| 找不到中文字体 | Linux：`apt install fonts-noto-cjk`；macOS 自带苹方；Windows 自带雅黑 |
+| 桌面不可写 | 生成包时加 `--pack <路径>` 指到能写的地方 |
+| `node: command not found` | 只影响出提示词包；装 Node 18+ 即可 |
+
+**安装到别人机器上**（DeepSeek Harness 会扫描这些根目录）：
+
+```bash
+git clone <repo> 
+mkdir -p <项目根>/.dsh/skills
+cp -r <repo>/.dsh/skills/iflink-meetup-poster <项目根>/.dsh/skills/
+# 或放到用户级：~/.dsh/skills/
+```
+
+放好即生效（热加载，无需重启）。然后用 `references/02-input-schema.md` 里的字段填一条 spec，或直接让 agent 引导。
+
+> **分发注意**：`assets/reference/` 里有 IF.Link 品牌资产（Logo / slogan / 定稿），对外发之前确认对方有使用权限，或换成占位素材。代码部分是 MIT（见仓库 LICENSE）。
 ## 1. 触发与适用边界
 
 **触发**：用户要出 Meetup / 线下分享会 / 沙龙 / 开放麦活动海报；或说"照这张海报的风格再做一张"；或要批量产出一整个系列的活动物料。

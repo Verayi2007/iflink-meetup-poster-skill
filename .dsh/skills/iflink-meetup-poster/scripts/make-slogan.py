@@ -28,21 +28,13 @@ for _s in (sys.stdout, sys.stderr):
 SKILL_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CANONICAL = "Link the IFs, Connect the Dots"
 
-# Windows 上优先用 Segoe UI Bold（字形接近 Inter），退回微软雅黑 Bold
-FONT_CANDIDATES = [
-    ("C:/Windows/Fonts/segoeuib.ttf", 1000),
-    ("C:/Windows/Fonts/msyhbd.ttc", 1000),
-]
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from fonts import latin_font
 
 
 def load_font(size):
-    for path, _ in FONT_CANDIDATES:
-        if os.path.exists(path):
-            try:
-                return ImageFont.truetype(path, size), os.path.basename(path)
-            except Exception:
-                continue
-    return ImageFont.load_default(), "default"
+    font, path = latin_font(size)
+    return font, os.path.basename(path)
 
 
 def main():

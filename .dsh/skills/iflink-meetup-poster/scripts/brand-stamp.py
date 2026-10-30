@@ -134,10 +134,11 @@ def main():
             sx, sy = right - sw, ly + (lh - sh) // 2
             paste_scaled(src, slogan_path, target_w=slogan_w, xy=(sx, sy))
         else:
-            from PIL import ImageDraw, ImageFont
+            from PIL import ImageDraw
+            sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+            from fonts import latin_font
             fsize = int(h * 0.0195)
-            font_path = "C:/Windows/Fonts/msyhbd.ttc"
-            font = ImageFont.truetype(font_path, fsize) if os.path.exists(font_path) else ImageFont.load_default()
+            font, _ = latin_font(fsize)
             d = ImageDraw.Draw(src)
             txt = args.slogan_text
             box = d.textbbox((0, 0), txt, font=font)
