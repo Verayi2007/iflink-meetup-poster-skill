@@ -15,3 +15,7 @@ logo&slogan/04_文字与字体规范/字体包/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Python 缓存
+__pycache__/
+*.pyc
