@@ -1,0 +1,46 @@
+{
+  "series": "Meetup",
+  "event_name": "IF.Link Meetup",
+  "kicker": "AI × 创作 × 交流",
+  "one_liner": "和一群有趣的人，一起聊聊 AI 的更多可能",
+  "date_time": "10 月 31 日（周六）晚 19:00–21:00",
+  "location": "东南大学四牌楼校区梅庵书院 110 室",
+  "guest_section_title": "分享嘉宾 & 主题",
+  "guests": [
+    {
+      "name": "罗丽",
+      "topic": "如何成为一只会做推送的奶龙",
+      "gender": "female",
+      "hair": "黑色长发"
+    },
+    {
+      "name": "沁言学术腾飞",
+      "topic": "学术 AI 助力高校科研",
+      "gender": "male",
+      "hair": "黑色短发、戴圆框眼镜"
+    },
+    {
+      "name": "黄东迩",
+      "topic": "戴着镣铐跳舞：AI 动效设计在公众号 SVG 动画与小红书实况照片中的实践",
+      "gender": "male",
+      "hair": "黑色短发、戴鸭舌帽与眼镜"
+    },
+    {
+      "name": "陈予谦",
+      "topic": "如何使用 AI 做 UIUX 设计",
+      "gender": "male",
+      "hair": "黑色短发、戴眼镜"
+    }
+  ],
+  "perks_title": "小福利",
+  "perks_text": "到场有好吃好喝茶歇等着你",
+  "mascot": {
+    "enabled": true,
+    "name": "奶龙",
+    "cup_brand": "IF.Link"
+  },
+  "slogan": "Link the IFs, Connect the Dots",
+  "variant": "cream",
+  "canvas": "1024x1536",
+  "notes": "示例即原作定稿参数；改活动信息即可产出同系列新一期。"
+}

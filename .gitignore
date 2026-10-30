@@ -1,0 +1,16 @@
+# ── 构建产物与运行痕迹 ──
+build/
+node_modules/
+*.log
+
+# ── 大体积字体包（138 MB，请从品牌库获取，不入库）──
+logo&slogan/04_文字与字体规范/字体包/
+*.zip
+
+# ── 原始对话截图（含个人姓名与头像，不入库）──
+和chatgpt的对话/
+
+# ── 系统文件 ──
+.DS_Store
+Thumbs.db
+desktop.ini
