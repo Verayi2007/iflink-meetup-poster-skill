@@ -195,7 +195,7 @@ python scripts/check-palette.py build/poster.png        # G2
 
 ### Phase 6 · 贴牌 → 交付
 
-**拿到成图的第一件事不是验收，是贴 Logo**：
+**这两步由你（agent）执行，不要把它们写进给用户的提示词包** —— 用户的包只有「上传 → 粘贴 → 挑一版发回来」。**拿到成图的第一件事不是验收，是贴 Logo**：
 
 ```bash
 python scripts/brand-stamp.py <成图.png> --out <成图-branded.png>

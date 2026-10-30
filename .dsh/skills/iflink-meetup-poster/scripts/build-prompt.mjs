@@ -895,12 +895,15 @@ async function writePromptPack(dir, { spec }) {
 <div class="note">发送后模型会给 <strong>3 版不同排法</strong>，挑一版；不满意的局部，用下面第四节的话术改，不要让它整版重来。</div>
 <pre id="prompt">${esc(prompt)}</pre>
 
-<h2>三、出图之后（两条命令）</h2>
-<pre># 1) 贴正 Logo 与 slogan（模型画不准，盖掉重贴）
-python scripts/brand-stamp.py &lt;成图.png&gt; --out &lt;成图-branded.png&gt;
-
-# 2) 验色：三主色占比、点缀色、有没有橙红
-python scripts/check-palette.py &lt;成图-branded.png&gt; --debug</pre>
+<h2>三、出图之后</h2>
+<div class="note">
+  <strong>三张图出来后，挑一张发给我就行</strong>，剩下两件事我来做（不用你自己跑任何命令）：
+  <ol style="margin:10px 0 6px">
+    <li><strong>把 Logo 和 slogan 贴正。</strong> 生图模型画不准这几个字，所以会用它画的那块盖掉，换成官方 Logo 重新贴，位置和上一期一致。</li>
+    <li><strong>验一遍颜色。</strong> 看荧光绿 / 黑 / 奶油白三色的面积对不对，有没有混进别的颜色（尤其参考图那种橙红）。</li>
+  </ol>
+  这两步做完，图就可以直接发了。
+</div>
 
 <h2>四、出问题时贴哪一条</h2>
 <div class="note">一次只修一处，修完再修下一处 —— 同时提多个修改点，模型会把别的地方一起改坏。</div>
