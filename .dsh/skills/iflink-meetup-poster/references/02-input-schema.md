@@ -29,7 +29,7 @@
 福利标题：到场福利
 福利：人手一杯奶茶，先到先得
 插画场景：白板
-吉祥物：无
+点缀角色：无
 ```
 
 ## 三、字段总表
@@ -63,10 +63,11 @@
 | `perks_title` | `小福利` | 笔刷块上的标题 |
 | `illustration.scene` | `sit-around` | 右侧插画场景，见下 |
 | `illustration.description` | 空 | `scene: custom` 时必填（E061） |
-| `mascot.preset` | `none` | `nailong` / `custom` / `none` |
-| `mascot.name` | 空 | 有吉祥物时必填（E064） |
-| `mascot.cup_brand` | 空 | 杯身/道具上的竖排文字 |
-| `mascot.description` | 空 | `preset: custom` 时必填（E063），建议含主色 HEX |
+| `decor.preset` | `none` | 右下角点缀角色：`none` / `topic`（从嘉宾话题取意象）/ `custom`。它不是品牌吉祥物 |
+| `decor.from_guest` | 空 | `preset: topic` 时必填（E064），填嘉宾姓名 |
+| `decor.description` | 空 | `preset: custom` 时必填（E063）；`topic` 时可作为补充提示 |
+| `decor.accent_color` | 空 | 全图唯一允许的非品牌色，HEX；面积 ≤6% |
+| `decor.props` | 空 | 道具描述，如「白色纸杯，杯身竖排 IF.Link」 |
 | `slogan` | `Link the IFs, Connect the Dots` | **锁定**，改动即 E031（除非 `allow_slogan_override: true`） |
 | `allow_slogan_override` | `false` | 显式授权后才允许改 slogan |
 | `variant` | `cream` | `cream`（原作同款）/ `dark`（黑底变体） |
@@ -86,13 +87,17 @@
 | `none` | 不放插画，右侧留白 + 涂鸦呼吸 | 嘉宾多、信息重时 |
 | `custom` | 用 `description` 自定义（≤ 200 字） | 特殊主题 |
 
-### 吉祥物（`mascot.preset`）
+### 点缀角色（`decor.preset`）
+
+> IF.Link **没有**品牌吉祥物。右下角那个小角色是"本期内容的可视化"：原作那只黄色小奶龙就来自罗丽老师的话题「如何成为一只会做推送的奶龙」，换个主题它就不该出现。
 
 | 值 | 行为 |
 | --- | --- |
-| `nailong` | 内置奶龙规范（圆润梨形、`#FED754`、豆眼+笑眼、橙嘴、捧杯、绿色笔刷水洼）；同时生成专用重绘模板 |
-| `custom` | 按 `description` 描述（建议写明形状/主色 HEX/描边/五官/道具）；未给 HEX 会 W012 |
-| `none` | 不放吉祥物；提示词、白名单、配色表、修复模板全部自动去掉该元素 |
+| `topic` | 提示词里写死"取材自「某嘉宾」的话题「某标题」"，指令模型自己挑一个最具体的名词意象画成简笔角色；可选 `description` 补一句参考形象 |
+| `custom` | 完全按 `description` 画（建议写形状 / 主色 HEX / 描边 / 五官 / 道具）；未给 `accent_color` 会 W012 |
+| `none` | 不画角色：右下角留白 + 2–3 个荧光绿涂鸦；白名单、配色表、修复模板自动去掉该元素 |
+
+**点缀色额度**：`decor.accent_color` 是全图唯一允许的非品牌色，面积 ≤6%，只能落在角色/道具与涂鸦上；不给就不引入任何第六种颜色。参考图橙红 `#FE7733` 不属于合格点缀色。
 
 ## 四、spec.json 骨架
 
@@ -111,7 +116,7 @@
   "perks_title": "到场福利",
   "perks_text": "人手一杯奶茶，先到先得",
   "illustration": { "scene": "whiteboard", "description": "" },
-  "mascot": { "preset": "none", "name": "", "cup_brand": "", "description": "" },
+  "decor": { "preset": "none", "from_guest": "", "description": "", "accent_color": "", "props": "" },
   "slogan": "Link the IFs, Connect the Dots",
   "variant": "cream",
   "canvas": "1024x1536"
@@ -142,9 +147,10 @@
 | E050 | error | 出现白名单外元素（主办/二维码/…） | 删除该信息 |
 | E060 | error | 插画场景非法 | 见场景表 |
 | E061 | error | `scene: custom` 但没描述 | 补 `illustration.description` |
-| E062 | error | 吉祥物 preset 非法 | nailong / custom / none |
-| E063 | error | `preset: custom` 但没描述 | 补 `mascot.description` |
-| E064 | error | 有吉祥物但没 name | 补名字 |
+| E062 | error | 点缀角色 preset 非法 | none / topic / custom |
+| E063 | error | `preset: custom` 但没描述 | 补 `decor.description` |
+| E064 | error | `preset: topic` 但没给 `from_guest` | 补嘉宾姓名 |
+| E065 | error | `decor.accent_color` 不是 #RRGGBB | 改正 HEX |
 | W001 | warn | 话题含易混字 | 人工查证（原作「镣铐」→「镲锜」） |
 | W002 | warn | 话题 36–42 字 | 成图后逐字核对 |
 | W003 | warn | 主张 > 26 字 | 会换行破坏单行结构 |
@@ -155,7 +161,8 @@
 | W009 | warn | 发型描述 > 14 字 | 头像只有 96px |
 | W010 | warn | spec 里重复声明 palette | 以 SKILL 常量为准 |
 | W011 | warn | 自定义插画描述 > 200 字 | 压到 120 字内 |
-| W012 | warn | 自定义吉祥物没给主色 HEX | 补 HEX，否则模型自由发挥 |
+| W012 | warn | 自定义角色没给点缀色 HEX | 补 HEX，否则模型自由发挥 |
+| W013 | warn | `from_guest` 不在嘉宾名单里 | 检查姓名拼写 |
 
 **退出码**：`0` 通过（可带 warning）｜`1` 有 error｜`2` 用法或 IO 错误。可直接接进 CI 或批量脚本。
 
@@ -171,6 +178,7 @@
 | `guests[].topic` | chip 下方 | > 3 行会挤压下一位嘉宾（5–6 位时上限 2 行） |
 | `guests.length` | 整段节距 | 2 位疏排 / 3–4 位标准 / 5–6 位紧凑，字号与头像同步缩放 |
 | `illustration.scene` | 右侧 x 545–1010 | `none` 时整块变留白 |
-| `mascot.preset` | 右下 x 620–1000 | `none` 时变留白 + 涂鸦 |
+| `decor.preset` | 右下 x 620–1000 | `none` 时变留白 + 涂鸦 |
+| `decor.accent_color` | 角色与涂鸦 | 决定全图唯一的非品牌色 |
 | `perks_text` | y 1330 斜排 | > 24 字超出笔刷块 |
 | `variant` | 整张底色 | 会连带切换 Logo 版本 |

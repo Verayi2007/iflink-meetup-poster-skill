@@ -35,10 +35,10 @@ const SCENE_ALIAS = {
   custom: "custom", 自定义: "custom",
 };
 
-const MASCOT_ALIAS = {
-  nailong: "nailong", 奶龙: "nailong",
+const DECOR_ALIAS = {
+  topic: "topic", 取自话题: "topic", 内容: "topic", 从内容来: "topic",
   custom: "custom", 自定义: "custom",
-  none: "none", 无: "none", 不要: "none",
+  none: "none", 无: "none", 不要: "none", 不画: "none",
 };
 
 /* ────────────────────────────── 空白骨架 ────────────────────────────── */
@@ -59,7 +59,7 @@ function blankSpec() {
     perks_title: "小福利",
     perks_text: "",
     illustration: { scene: "sit-around", description: "" },
-    mascot: { preset: "none", name: "", cup_brand: "", description: "" },
+    decor: { preset: "none", from_guest: "", description: "", accent_color: "", props: "" },
     slogan: "Link the IFs, Connect the Dots",
     variant: "cream",
     canvas: "1024x1536",
@@ -80,8 +80,10 @@ const KEY_MAP = {
   福利: "perks_text", 小福利: "perks_text", perks: "perks_text", perks_text: "perks_text",
   插画场景: "illustration_scene", 场景: "illustration_scene", scene: "illustration_scene",
   插画描述: "illustration_desc", illustration: "illustration_desc",
-  吉祥物: "mascot", mascot: "mascot",
-  杯身字: "cup_brand", cup_brand: "cup_brand",
+  点缀角色: "decor", 小角色: "decor", 点缀: "decor", decor: "decor",
+  角色来源: "decor_guest", 取自嘉宾: "decor_guest", from_guest: "decor_guest",
+  点缀色: "accent_color", 强调色: "accent_color", accent: "accent_color", accent_color: "accent_color",
+  角色道具: "decor_props", 道具: "decor_props", props: "decor_props",
   变体: "variant", variant: "variant",
   备注: "notes", notes: "notes",
 };
@@ -99,6 +101,11 @@ function clean(v) {
     .replace(/\s+/g, " ")
     .replace(/^["'「”]+|["'」”]+$/g, "")
     .trim();
+}
+
+/** 用户常用的"这里不填"写法统一视为空 */
+function emptyish(v) {
+  return !v || /^[（(]?\s*(空|无|不填|none|null|n\/a|—|-|–)\s*[)）]?$/i.test(v.trim());
 }
 
 function parseGuestLine(line) {
@@ -157,23 +164,28 @@ async function parseIntake(file) {
 
     if (field === "illustration_scene") spec.illustration.scene = SCENE_ALIAS[v] ?? v;
     else if (field === "illustration_desc") spec.illustration.description = v;
-    else if (field === "mascot") {
-      const preset = MASCOT_ALIAS[v] ?? "custom";
-      spec.mascot.preset = preset;
-      if (preset === "custom") spec.mascot.description = v;
-    } else if (field === "cup_brand") spec.mascot.cup_brand = v;
+    else if (field === "decor") {
+      const preset = DECOR_ALIAS[v] ?? "custom";
+      spec.decor.preset = preset;
+      if (preset === "custom" && !spec.decor.description) spec.decor.description = v;
+    } else if (field === "decor_guest") {
+      spec.decor.from_guest = v;
+      if (spec.decor.preset === "none") spec.decor.preset = "topic";
+    } else if (field === "accent_color") {
+      spec.decor.accent_color = emptyish(v) ? "" : /^#[0-9A-Fa-f]{6}$/.test(v) ? v.toUpperCase() : v;
+    } else if (field === "decor_props") spec.decor.props = v;
     else if (field === "variant") spec.variant = /dark|深|黑/.test(v) ? "dark" : "cream";
-    else spec[field] = v;
+    else spec[field] = emptyish(v) ? "" : v;
     inGuests = false;
   }
 
-  // 吉祥物名称：preset=nailong 时默认奶龙
-  if (spec.mascot.preset === "nailong") {
-    spec.mascot.name = spec.mascot.name || "奶龙";
-    spec.mascot.cup_brand = spec.mascot.cup_brand || "IF.Link";
-  }
   if (spec.guests.length === 0) spec.guests.push({ name: "", topic: "", gender: "other", hair: "" });
-  if (!spec.mascot.preset) spec.mascot.preset = "none";
+  if (!spec.decor.preset) spec.decor.preset = "none";
+  // 只写了点缀色、没写角色 → 视为自定义角色（只要求一个色点）
+  if (spec.decor.preset === "none" && spec.decor.accent_color) {
+    spec.decor.preset = "custom";
+    spec.decor.description = spec.decor.description || "一个与本期主题相关的小物件";
+  }
 
   return spec;
 }
@@ -226,13 +238,20 @@ async function interactive(outPath) {
       spec.illustration.description = await ask("      自定插画描述", "");
     }
 
-    const mascot = await ask("⑩ 吉祥物（奶龙/无/自定义描述）", "无");
-    if (MASCOT_ALIAS[mascot] === "nailong") {
-      spec.mascot = { preset: "nailong", name: "奶龙", cup_brand: "IF.Link", description: "" };
-    } else if (MASCOT_ALIAS[mascot]) {
-      spec.mascot = { preset: "none", name: "", cup_brand: "", description: "" };
-    } else {
-      spec.mascot = { preset: "custom", name: "吉祥物", cup_brand: "", description: mascot };
+    console.log("\n⑩ 点缀角色（右下角那个小角色/小物件，不是品牌吉祥物）");
+    const decorChoice = await ask("   要画吗？（取自话题/自定义/无）", "无");
+    const decorPreset = DECOR_ALIAS[decorChoice] ?? "custom";
+    spec.decor = { preset: decorPreset, from_guest: "", description: "", accent_color: "", props: "" };
+    if (decorPreset === "topic") {
+      spec.decor.from_guest = await ask("   从哪位嘉宾的话题里取意象（填姓名）", spec.guests[0]?.name ?? "");
+      spec.decor.description = await ask("   想画成什么（可空，模型自行取材）", "");
+    } else if (decorPreset === "custom") {
+      spec.decor.description =
+        DECOR_ALIAS[decorChoice] ? await ask("   长什么样", "") : decorChoice;
+    }
+    if (decorPreset !== "none") {
+      spec.decor.accent_color = await ask("   点缀色 HEX（全图唯一允许的非品牌色，可空）", "");
+      spec.decor.props = await ask("   道具（可空）", "");
     }
 
     await mkdir(path.dirname(path.resolve(outPath)), { recursive: true });

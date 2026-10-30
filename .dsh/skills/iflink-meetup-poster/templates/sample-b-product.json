@@ -1,5 +1,5 @@
 {
-  "_说明": "样例 B：一场完全不同活动的填写示范 —— 2 位嘉宾、白板场景、不放吉祥物、不设一句话主张。用来证明同一套视觉母版可以承接任何 Meetup 内容。",
+  "_说明": "样例 B：一场完全不同活动的填写示范 —— 2 位嘉宾、白板场景、不设点缀角色（所以全图只有主色）、不设一句话主张。用来证明同一套视觉母版可以承接任何 Meetup 内容。",
   "series": "Meetup",
   "event_name": "IF.Link Meetup #12",
   "kicker": "产品 × 设计 × 复盘",
@@ -14,7 +14,7 @@
   "perks_title": "到场福利",
   "perks_text": "人手一杯奶茶，先到先得 ☕",
   "illustration": { "scene": "whiteboard", "description": "" },
-  "mascot": { "preset": "none", "name": "", "cup_brand": "", "description": "" },
+  "decor": { "preset": "none", "from_guest": "", "description": "", "accent_color": "", "props": "" },
   "slogan": "Link the IFs, Connect the Dots",
   "variant": "cream",
   "canvas": "1024x1536"

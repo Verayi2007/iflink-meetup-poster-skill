@@ -1,5 +1,5 @@
 {
-  "_说明": "样例 A：原作定稿参数（2026-10-31 IF.Link Meetup）。用于回归测试与视觉基准，不要直接改成新一期，复制一份再改。",
+  "_说明": "样例 A：原作定稿参数（2026-10-31 IF.Link Meetup）。注意：右下角那只黄色小奶龙不是品牌吉祥物，它是从罗丽老师的话题「如何成为一只会做推送的奶龙」里取的点缀角色。",
   "series": "Meetup",
   "event_name": "IF.Link Meetup",
   "kicker": "AI × 创作 × 交流",
@@ -21,7 +21,13 @@
   "perks_title": "小福利",
   "perks_text": "到场有好吃好喝茶歇等着你",
   "illustration": { "scene": "sit-around", "description": "" },
-  "mascot": { "preset": "nailong", "name": "奶龙", "cup_brand": "IF.Link", "description": "" },
+  "decor": {
+    "preset": "topic",
+    "from_guest": "罗丽",
+    "description": "圆滚滚的黄色小奶龙，短手短脚，坐在地上捧着一杯奶茶",
+    "accent_color": "#FED754",
+    "props": "白色纸杯，杯身竖排黑字「IF.Link」，插一根吸管"
+  },
   "slogan": "Link the IFs, Connect the Dots",
   "variant": "cream",
   "canvas": "1024x1536"

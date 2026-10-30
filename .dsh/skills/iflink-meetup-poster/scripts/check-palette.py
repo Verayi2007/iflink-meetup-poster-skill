@@ -1,12 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-check-palette.py — IF.Link Meetup 海报「色彩锁」闸门（G2）
+check-palette.py — IF.Link Meetup 海报「配色闸门」（G2）
 
-把成图逐像素归类到品牌六色，输出面积占比，并对三件事下判决：
-  1. 三主色占比是否落在区间内（奶油白 / 墨色 / 荧光绿）
-  2. 是否出现禁用色（橙红 #FE7733 家族、第二强调色）
-  3. 是否混入渐变/照片质感（表现为大量"无法归类"的中间色）
+判定三层：
+  1. 主色锁：奶油白 / 深黑灰 / 荧光绿 三个主色的面积占比是否落在区间内
+  2. 点缀色：允许 1–2 种非主色，但总面积 ≤ 8%、单色 ≤ 5%（点缀而已，不能抢戏）
+  3. 禁用：参考图橙红 #FE7733 家族 > 3% 判 FAIL（照抄参考图配色的头号翻车点）
 
 用法：
     python scripts/check-palette.py build/poster.png
@@ -14,13 +14,15 @@ check-palette.py — IF.Link Meetup 海报「色彩锁」闸门（G2）
     python scripts/check-palette.py assets/reference/final-poster.png --debug
 
 退出码：0 = PASS（可含 WARN）；1 = FAIL；2 = 用法/IO 错误
-依赖：Pillow（numpy 可选，装了会快很多）
+依赖：Pillow（numpy 可选，装了更快）
 """
 
 import argparse
+import colorsys
 import json
 import os
 import sys
+from collections import Counter
 
 try:
     from PIL import Image
@@ -32,118 +34,156 @@ except ImportError:  # pragma: no cover
 for _stream in (sys.stdout, sys.stderr):
     try:
         _stream.reconfigure(encoding="utf-8", errors="replace")
-    except Exception:  # pragma: no cover - 老版本 Python 或已重定向的流
+    except Exception:  # pragma: no cover
         pass
 
-# ── 品牌色板（与 SKILL.md / build-prompt.mjs 保持一致）────────────────────────
-BRAND = {
+# ── 主色板（与 SKILL.md / build-prompt.mjs 保持一致）──────────────────────────
+CORE = {
     "cream":   ("#F6F6F1", (246, 246, 241), "奶油白画布"),
     "ink":     ("#242021", (36, 32, 33),    "深黑灰墨色"),
     "green":   ("#B1FA63", (177, 250, 99),  "品牌荧光绿"),
     "white":   ("#FFFFFF", (255, 255, 255), "纯白"),
-    "mascot":  ("#FED754", (254, 215, 84),  "吉祥物黄"),
-    "divider": ("#DCEFC0", (220, 239, 192), "极浅绿分隔线"),
+    "divider": ("#DCEFC0", (220, 239, 192), "极浅绿"),
 }
 
-# 成图容差：模型输出几乎不会给出精确 HEX，用最近邻归类而不是精确匹配
-MAX_DIST = 62          # 超过此距离判为"无法归类"
-MIN_DIST = 4           # 精确命中阈值（用于 --debug）
+MAX_DIST = 62          # 超过此距离不算主色（进入点缀色分析）
 
-# 面积占比闸门（%）。以原作定稿实测 69 / 10.9 / 9.3 为中心放宽
+# 主色占比闸门（%），以原作定稿实测 66 / 11.5 / 9.5 为中心
 GATES = {
-    "cream":   (55.0, 85.0),
-    "ink":     (5.0, 18.0),
-    "green":   (5.0, 16.0),
-    "mascot":  (0.0, 5.0),
-    "other":   (0.0, 12.0),   # 无法归类像素上限：过高说明有渐变/照片/外来色
+    "cream": (55.0, 85.0),
+    "ink":   (5.0, 18.0),
+    "green": (5.0, 16.0),
+    "white": (0.0, 6.0),
 }
 
-# 禁用色家族：橙红及其邻域
-BANNED = [
-    ("#FE7733", (254, 119, 51), "参考图橙红"),
-    ("#FF8A3D", (255, 138, 61), "暖橙"),
-    ("#FF6B35", (255, 107, 53), "南瓜橙"),
-]
-BANNED_MAX_SHARE = 0.6     # 占全图 0.6% 即判 FAIL（一张海报上橙红几乎不可能是误判）
-BANNED_DIST = 45           # 与禁用色的 RGB 欧氏距离阈值（橙红家族识别半径）
+# 点缀色闸门（%）
+ACCENT_TOTAL_MAX = 8.0     # 所有点缀色合计
+ACCENT_SINGLE_MAX = 5.0    # 单一色调上限
+ACCENT_HUES_MAX = 2        # 最多两种点缀色调
+ACCENT_MIN_SHARE = 0.8     # 低于此占比的色相当作抗锯齿噪点，不计入"一种颜色"
+
+# 禁用：参考图橙红家族（作为主色或大面积出现即判 FAIL）
+BANNED_HUE = 22            # #FE7733 的色相约 22°
+BANNED_HUE_TOL = 14
+BANNED_MAX_SHARE = 3.0
+BANNED_HEX = "#FE7733"
 
 
 def dist2(c, ref):
     return (c[0] - ref[0]) ** 2 + (c[1] - ref[1]) ** 2 + (c[2] - ref[2]) ** 2
 
 
-def classify(pixels):
-    """返回 {name: count} 与 total；pixels 为 (r,g,b) 可迭代序列。"""
-    keys = list(BRAND.keys())
-    refs = [BRAND[k][1] for k in keys]
-    banned_refs = [b[1] for b in BANNED]
-    counts = {k: 0 for k in keys}
-    counts["other"] = 0
-    counts["banned"] = 0
-    maxd2 = MAX_DIST ** 2
-    band2 = BANNED_DIST ** 2
+def core_counts(im):
+    """最近邻归入主色，返回 {key: count}, other 像素列表, total"""
+    try:
+        import numpy as np
+    except ImportError:
+        np = None
 
+    if np is not None:
+        a = np.asarray(im, dtype=np.int32).reshape(-1, 3)
+        best = np.full(len(a), 1 << 30, dtype=np.int32)
+        idx = np.zeros(len(a), dtype=np.int8)
+        for i, k in enumerate(CORE):
+            ref = np.array(CORE[k][1], dtype=np.int32)
+            d = ((a - ref) ** 2).sum(axis=1)
+            take = d < best
+            best[take] = d[take]
+            idx[take] = i
+        other_mask = best >= MAX_DIST ** 2
+        counts = {k: int(((idx == i) & ~other_mask).sum()) for i, k in enumerate(CORE)}
+        other = a[other_mask]
+        return counts, other, len(a)
+
+    counts = {k: 0 for k in CORE}
+    other = []
+    keys = list(CORE.keys())
     total = 0
-    for px in pixels:
+    for px in im.getdata():
         total += 1
-        best_i, best_d = -1, maxd2
-        for i, ref in enumerate(refs):
-            d = dist2(px, ref)
+        best_d, best_i = MAX_DIST ** 2, -1
+        for i, k in enumerate(keys):
+            d = dist2(px, CORE[k][1])
             if d < best_d:
                 best_d, best_i = d, i
         if best_i >= 0:
             counts[keys[best_i]] += 1
         else:
-            counts["other"] += 1
-            # 无法归类的像素里，有多少落在禁用色邻域
-            for bref in banned_refs:
-                if dist2(px, bref) < band2:
-                    counts["banned"] += 1
-                    break
-    return counts, total
+            other.append(px)
+    return counts, other, total
 
 
-def classify_numpy(im):
+def accent_stats(other, total):
+    """
+    把「非主色」像素按色相分箱统计，只统计有饱和度的像素（去掉抗锯齿灰边）。
+    返回 (accent_total_share, {hue_bin: share}, banned_share)
+    """
+    if total == 0:
+        return 0.0, {}, 0.0
+
+    # 统计唯一颜色出现次数，避免逐像素 HSV 换算太慢
     try:
         import numpy as np
-    except ImportError:
-        return None
-    a = np.asarray(im, dtype=np.int32).reshape(-1, 3)
-    keys = list(BRAND.keys())
+        uniq, cnt = np.unique(other, axis=0, return_counts=True) if len(other) else (None, None)
+        pairs = list(zip(map(tuple, uniq), cnt.tolist())) if uniq is not None else []
+    except ImportError:  # pragma: no cover
+        counter = Counter(map(tuple, other))
+        pairs = list(counter.items())
 
-    # 逐色累加最小距离，避免一次性开 (N, 6, 3) 的大数组
-    best = np.full(len(a), 1 << 30, dtype=np.int32)
-    idx = np.zeros(len(a), dtype=np.int8)
-    for i, k in enumerate(keys):
-        ref = np.array(BRAND[k][1], dtype=np.int32)
-        d = ((a - ref) ** 2).sum(axis=1)
-        take = d < best
-        best[take] = d[take]
-        idx[take] = i
+    bins = Counter()
+    banned = 0
+    # 主色自身的色相（荧光绿的深浅变化不该被算成"另一种点缀色"）
+    core_hues = []
+    for k in ("green", "divider"):
+        r, g, b = [v / 255.0 for v in CORE[k][1]]
+        hh, ss, vv = colorsys.rgb_to_hsv(r, g, b)
+        if ss >= 0.2:
+            core_hues.append(hh * 360.0)
 
-    other = best >= MAX_DIST ** 2
-    counts = {k: int(((idx == i) & ~other).sum()) for i, k in enumerate(keys)}
-    counts["other"] = int(other.sum())
-    counts["banned"] = 0
-    if counts["other"]:
-        sub = a[other]
-        best_b = np.full(len(sub), 1 << 30, dtype=np.int32)
-        for _, ref_tuple, _ in BANNED:
-            d = ((sub - np.array(ref_tuple, dtype=np.int32)) ** 2).sum(axis=1)
-            best_b = np.minimum(best_b, d)
-        counts["banned"] = int((best_b < BANNED_DIST ** 2).sum())
-    return counts, len(a)
+    for (r, g, b), n in pairs:
+        h, s, v = colorsys.rgb_to_hsv(r / 255.0, g / 255.0, b / 255.0)
+        deg = h * 360.0
+        # 橙红家族：无论饱和度高低都要抓（参考图配色就是这个）
+        if abs(((deg - BANNED_HUE + 180) % 360) - 180) <= BANNED_HUE_TOL and s >= 0.35 and v >= 0.55:
+            banned += n
+        if s < 0.20 or v < 0.15:      # 近似灰 / 极暗，属于抗锯齿或线稿边缘
+            continue
+        if any(abs(((deg - ch + 180) % 360) - 180) <= 18 for ch in core_hues):
+            continue                   # 品牌绿的同族深浅，不计入点缀色
+        bins[int(deg) // 15 * 15] += n
+
+    accent_total = sum(bins.values()) / total * 100.0
+    shares = {k: v / total * 100.0 for k, v in bins.items()}
+    return accent_total, shares, banned / total * 100.0
 
 
 def pct(n, total):
     return 100.0 * n / total if total else 0.0
 
 
+def hue_name(deg):
+    if deg < 15 or deg >= 345:
+        return "红"
+    if deg < 45:
+        return "橙"
+    if deg < 70:
+        return "黄"
+    if deg < 165:
+        return "绿"
+    if deg < 195:
+        return "青"
+    if deg < 255:
+        return "蓝"
+    if deg < 290:
+        return "紫"
+    return "粉"
+
+
 def main():
-    ap = argparse.ArgumentParser(description="IF.Link 海报色彩锁闸门")
+    ap = argparse.ArgumentParser(description="IF.Link 海报配色闸门 G2")
     ap.add_argument("image", help="待检海报 PNG/JPG")
     ap.add_argument("--json", dest="json_out", help="输出 JSON 报告")
-    ap.add_argument("--debug", action="store_true", help="打印色块分布与采样点")
+    ap.add_argument("--debug", action="store_true", help="打印完整色相分布与采样点")
     ap.add_argument("--max-side", type=int, default=900, help="分析前等比缩到的最长边（默认 900）")
     args = ap.parse_args()
 
@@ -157,53 +197,59 @@ def main():
     if scale < 1:
         im = im.resize((max(1, int(w * scale)), max(1, int(h * scale))), Image.LANCZOS)
 
-    res = classify_numpy(im)
-    if res is None:
-        res = classify(im.getdata())
-    counts, total = res
-
+    counts, other, total = core_counts(im)
     shares = {k: pct(v, total) for k, v in counts.items()}
+    accent_total, accent_bins, banned_share = accent_stats(other, total)
 
-    # ── 判定 ──
     fails, warns, oks = [], [], []
 
+    # ── 1. 主色锁 ──
     for key in ("cream", "ink", "green"):
         lo, hi = GATES[key]
         v = shares[key]
-        label = BRAND[key][2]
+        label = CORE[key][2]
         if lo <= v <= hi:
-            oks.append(f"{label:<8} {v:5.1f}%  目标 {lo:.0f}–{hi:.0f}%")
+            oks.append(f"{label:<7} {v:5.1f}%  区间 {lo:.0f}–{hi:.0f}%")
         else:
             dev = "偏低" if v < lo else "偏高"
-            fails.append(f"{label:<8} {v:5.1f}%  目标 {lo:.0f}–{hi:.0f}%  → {dev}")
+            fails.append(f"{label:<7} {v:5.1f}%  区间 {lo:.0f}–{hi:.0f}%  → {dev}")
             if key == "green" and v > hi:
-                warns.append("荧光绿超量：绿已从「点睛」变「糊墙」，超过 16% 会显土。")
+                warns.append("荧光绿超量：绿已从「点睛」变「糊墙」，建议把绿收回到 16% 以内。")
 
-    lo, hi = GATES["mascot"]
-    v = shares["mascot"]
-    if lo <= v <= hi:
-        oks.append(f"{'吉祥物黄':<8} {v:5.1f}%  上限 {hi:.0f}%")
+    lo, hi = GATES["white"]
+    if shares["white"] <= hi:
+        oks.append(f"{'纯白':<7} {shares['white']:5.1f}%  上限 {hi:.0f}%")
     else:
-        fails.append(f"{'吉祥物黄':<8} {v:5.1f}%  上限 {hi:.0f}%  → 吉祥物面积过大")
+        fails.append(f"{'纯白':<7} {shares['white']:5.1f}%  上限 {hi:.0f}%  → 反白面积过大，画面会发灰")
 
-    lo, hi = GATES["other"]
-    v = shares["other"]
-    if v <= hi:
-        oks.append(f"{'未归类色':<8} {v:5.1f}%  上限 {hi:.0f}%")
+    # ── 2. 点缀色 ──
+    active = {k: v for k, v in accent_bins.items() if v >= ACCENT_MIN_SHARE}
+    hue_count = len(active)
+    top = sorted(active.items(), key=lambda kv: -kv[1])[:3]
+    top_txt = "、".join(f"{hue_name(k)}色 {v:.1f}%" for k, v in top) or "无"
+
+    if accent_total <= ACCENT_TOTAL_MAX and (not active or max(active.values()) <= ACCENT_SINGLE_MAX) and hue_count <= ACCENT_HUES_MAX:
+        oks.append(f"{'点缀色':<7} {accent_total:5.1f}%  {hue_count} 种（{top_txt}）上限 {ACCENT_TOTAL_MAX:.0f}%")
+    elif hue_count > ACCENT_HUES_MAX:
+        fails.append(f"{'点缀色':<7} {accent_total:5.1f}%  出现 {hue_count} 种非主色（{top_txt}）→ 超过 2 种就变成「配色杂」")
+    elif active and max(active.values()) > ACCENT_SINGLE_MAX:
+        fails.append(f"{'点缀色':<7} {accent_total:5.1f}%  单色 {max(active.values()):.1f}% 上限 {ACCENT_SINGLE_MAX:.0f}%  → 某种颜色已抢戏")
     else:
-        fails.append(f"{'未归类色':<8} {v:5.1f}%  上限 {hi:.0f}%  → 存在渐变/照片质感/外来色")
-        warns.append("未归类色偏高：优先怀疑渐变、投影、写实质感或第二强调色。")
+        fails.append(f"{'点缀色':<7} {accent_total:5.1f}%  上限 {ACCENT_TOTAL_MAX:.0f}%  → 非主色面积过大")
 
-    banned_share = shares["banned"]
+    if hue_count == 0:
+        warns.append("没有任何点缀色：若本期有内容角色（如讲者话题里的意象），可以考虑加一只作为情绪点。")
+
+    # ── 3. 禁用橙红 ──
     if banned_share > BANNED_MAX_SHARE:
-        fails.append(f"{'禁用色':<8} {banned_share:5.1f}%  上限 {BANNED_MAX_SHARE}%  → 出现橙红家族（原作头号翻车点）")
+        fails.append(f"{'参考图橙红':<7} {banned_share:5.1f}%  上限 {BANNED_MAX_SHARE:.0f}%  → 照抄了 {BANNED_HEX} 家族（原作头号翻车点）")
     else:
-        oks.append(f"{'禁用色':<8} {banned_share:5.1f}%  上限 {BANNED_MAX_SHARE}%")
+        oks.append(f"{'参考图橙红':<7} {banned_share:5.1f}%  上限 {BANNED_MAX_SHARE:.0f}%")
 
     # ── 输出 ──
     line = "─" * 64
     print(line)
-    print("IF.Link Meetup 海报 · 色彩锁闸门 G2")
+    print("IF.Link Meetup 海报 · 配色闸门 G2")
     print(f"文件：{args.image}")
     print(f"尺寸：{w}×{h}（分析采样 {total} px）")
     print(line)
@@ -217,18 +263,21 @@ def main():
 
     verdict = "FAIL" if fails else ("WARN" if warns else "PASS")
     icon = {"PASS": "✅", "WARN": "⚠️", "FAIL": "❌"}[verdict]
-    print(f"{icon} 判定：{verdict}   （奶油白 / 墨色 / 荧光绿 三色占比为硬指标）")
+    print(f"{icon} 判定：{verdict}   （主色三色占比是硬指标；点缀色最多 2 种、合计 ≤8%）")
 
     if args.debug:
         print(line)
-        print("色板归类明细：")
-        for k, (hexv, _, label) in BRAND.items():
-            print(f"  {label:<10} {hexv}  {shares[k]:6.2f}%  ({counts[k]} px)")
-        print(f"  {'禁用色家族':<10} {'#FE7733':>7}  {banned_share:6.2f}%  ({counts['banned']} px)")
-        print(f"  {'未归类':<10} {'-':>7}  {shares['other']:6.2f}%  ({counts['other']} px)")
+        print("主色归类：")
+        for k, (hexv, _, label) in CORE.items():
+            print(f"  {label:<8} {hexv}  {shares[k]:6.2f}%  ({counts[k]} px)")
+        print("点缀色色相分布：")
+        for deg, share in sorted(accent_bins.items(), key=lambda kv: -kv[1])[:8]:
+            if share >= 0.1:
+                print(f"  {hue_name(deg)}色（H≈{deg}°）  {share:6.2f}%")
+        print(f"  合计 {accent_total:.2f}%（阈值 {ACCENT_TOTAL_MAX:.0f}%，单色 {ACCENT_SINGLE_MAX:.0f}%）")
         print(line)
-        print("采样点（左上 / 中心 / 右下）：")
         ww, hh = im.size
+        print("采样点：")
         for label, (x, y) in {
             "左上": (int(ww * 0.03), int(hh * 0.03)),
             "中心": (ww // 2, hh // 2),
@@ -242,8 +291,19 @@ def main():
             "image": os.path.abspath(args.image),
             "size": [w, h],
             "verdict": verdict,
-            "shares": {k: round(v, 2) for k, v in shares.items()},
-            "targets": {k: list(v) for k, v in GATES.items()},
+            "core_shares": {k: round(v, 2) for k, v in shares.items()},
+            "accent": {
+                "total": round(accent_total, 2),
+                "hues": {hue_name(k): round(v, 2) for k, v in active.items()},
+                "banned_orange": round(banned_share, 2),
+            },
+            "gates": {
+                "core": {k: list(v) for k, v in GATES.items()},
+                "accent_total_max": ACCENT_TOTAL_MAX,
+                "accent_single_max": ACCENT_SINGLE_MAX,
+                "accent_hues_max": ACCENT_HUES_MAX,
+                "banned_max": BANNED_MAX_SHARE,
+            },
             "fails": fails,
             "warns": warns,
         }

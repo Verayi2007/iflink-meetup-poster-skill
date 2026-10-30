@@ -13,7 +13,14 @@
   "perks_title": "小福利",
   "perks_text": "",
   "illustration": { "scene": "sit-around", "description": "" },
-  "mascot": { "preset": "none", "name": "", "cup_brand": "", "description": "" },
+  "decor": {
+    "_说明": "点缀角色：right-bottom 的小角色/小物件，用于呼应本期内容。preset=none 不画；topic 从某位嘉宾的话题里取意象；custom 自己描述。accent_color 是全图唯一允许的非品牌色。",
+    "preset": "none",
+    "from_guest": "",
+    "description": "",
+    "accent_color": "",
+    "props": ""
+  },
   "slogan": "Link the IFs, Connect the Dots",
   "variant": "cream",
   "canvas": "1024x1536",

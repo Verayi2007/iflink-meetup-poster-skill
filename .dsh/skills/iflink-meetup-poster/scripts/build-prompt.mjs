@@ -3,7 +3,7 @@
  * build-prompt.mjs — IF.Link Meetup 海报提示词装配器（纯入参驱动，不含任何具体活动内容）
  *
  * 职责：
- *   1. 校验 spec.json（品牌色彩锁 / 内容完整性 / 版式风险）
+ *   1. 校验 spec.json（主色锁 / 内容完整性 / 版式风险 / 点缀色合规）
  *   2. 把 spec 渲染进 assets/prompt-template.md
  *   3. 输出一份可直接投喂图像模型的提示词包，并打印校验报告
  *
@@ -30,7 +30,6 @@ const BRAND = Object.freeze({
   green: "#B1FA63",
   ink: "#242021",
   cream: "#F6F6F1",
-  mascot: "#FED754",
   divider: "#DCEFC0",
   white: "#FFFFFF",
   slogan: "Link the IFs, Connect the Dots",
@@ -41,9 +40,10 @@ const FORBIDDEN_ALWAYS = ["联合主办", "主办单位", "承办单位", "赞�
 const CONFUSABLES = ["镲", "锜", "镶", "铑", "镴"];
 const GENDERS = ["female", "male", "other"];
 const ILLUSTRATION_SCENES = ["sit-around", "whiteboard", "collab", "none", "custom"];
-const MASCOT_PRESETS = ["nailong", "custom", "none"];
+const DECOR_PRESETS = ["none", "topic", "custom"];
 
 const GENDER_LABEL = { female: "女", male: "男", other: "不限" };
+const HEX_RE = /^#[0-9A-Fa-f]{6}$/;
 
 /* ────────────────────────────── 校验 ────────────────────────────── */
 
@@ -56,14 +56,14 @@ const isStr = (v) => typeof v === "string" && v.trim().length > 0;
 const len = (v) => [...(v ?? "")].length;
 
 function normalize(raw) {
-  const mascotRaw = raw.mascot ?? {};
-  const preset = mascotRaw.preset ?? (mascotRaw.enabled === false ? "none" : "nailong");
+  const d = raw.decor ?? {};
+  const decorPreset = d.preset ?? "none";
 
   const spec = {
     series: raw.series ?? "Meetup",
     event_name: raw.event_name ?? "",
     kicker: raw.kicker ?? "",
-    one_liner: raw.one_liner ?? "",          // 可选：空则不出这一行
+    one_liner: raw.one_liner ?? "",
     date_time: raw.date_time ?? "",
     location: raw.location ?? "",
     guest_section_title: raw.guest_section_title ?? "分享嘉宾 & 主题",
@@ -74,13 +74,13 @@ function normalize(raw) {
       scene: raw.illustration?.scene ?? "sit-around",
       description: raw.illustration?.description ?? "",
     },
-    mascot: {
-      preset,                                  // nailong | custom | none
-      enabled: preset !== "none",
-      name: mascotRaw.name ?? (preset === "nailong" ? "奶龙" : ""),
-      cup_brand: mascotRaw.cup_brand ?? "",
-      description: mascotRaw.description ?? "",
-      accessory: mascotRaw.accessory ?? "白色纸杯，杯身竖排黑字「{CUP}」，插一根吸管",
+    // 点缀角色：来自内容（嘉宾话题里的意象）或自定义，绝不是"品牌吉祥物"
+    decor: {
+      preset: decorPreset,                       // none | topic | custom
+      from_guest: d.from_guest ?? "",
+      description: d.description ?? "",
+      accent_color: d.accent_color ?? "",
+      props: d.props ?? "",
     },
     slogan: raw.slogan ?? BRAND.slogan,
     allow_slogan_override: raw.allow_slogan_override === true,
@@ -157,7 +157,9 @@ function validate(spec) {
       if (len(g.topic) > 42) err("E012", `${at}.topic`, `分享主题 ${len(g.topic)} 字，超过 42 字会被模型截断（最多 3 行 × 14 字）`);
       else if (len(g.topic) > 36) warn("W002", `${at}.topic`, `分享主题 ${len(g.topic)} 字，接近 3 行上限，成图后务必逐字核对`);
       const hits = [...g.topic].filter((c) => CONFUSABLES.includes(c));
-      if (hits.length) warn("W001", `${at}.topic`, `话题含易混字「${[...new Set(hits)].join("、")}」，请人工查证是否为正确字`);
+      if (hits.length) {
+        warn("W001", `${at}.topic`, `话题含易混字「${[...new Set(hits)].join("、")}」，请人工查证是否为正确字`);
+      }
     }
     if (!GENDERS.includes(g?.gender)) err("E013", `${at}.gender`, `gender 必须是 ${GENDERS.join(" / ")}，它决定头像形象`);
     if (isStr(g?.hair) && len(g.hair) > 14) warn("W009", `${at}.hair`, "发型描述过长，头像只有 96px，建议 ≤ 14 字");
@@ -180,25 +182,33 @@ function validate(spec) {
     warn("W011", "illustration.description", "自定义插画描述超过 200 字，模型会抓不住重点，建议压到 120 字内");
   }
 
-  /* —— 吉祥物 —— */
-  if (!MASCOT_PRESETS.includes(spec.mascot.preset)) {
-    err("E062", "mascot.preset", `吉祥物 preset 只能是 ${MASCOT_PRESETS.join(" / ")}`);
+  /* —— 点缀角色（来自内容，不是品牌吉祥物） —— */
+  const dec = spec.decor;
+  if (!DECOR_PRESETS.includes(dec.preset)) {
+    err("E062", "decor.preset", `点缀角色 preset 只能是 ${DECOR_PRESETS.join(" / ")}`);
   }
-  if (spec.mascot.preset === "custom" && !isStr(spec.mascot.description)) {
-    err("E063", "mascot.description", "preset=custom 时必须描述吉祥物长相（形状 / 主色 / 描边 / 五官 / 道具）");
+  if (dec.preset === "custom" && !isStr(dec.description)) {
+    err("E063", "decor.description", "preset=custom 时必须描述这个角色/物件长什么样");
   }
-  if (spec.mascot.preset !== "none" && !isStr(spec.mascot.name)) {
-    err("E064", "mascot.name", "有吉祥物时必须给 name");
+  if (dec.preset === "topic") {
+    if (!isStr(dec.from_guest)) {
+      err("E064", "decor.from_guest", "preset=topic 时必须指定 from_guest（从哪位嘉宾的话题里取意象）");
+    } else if (!spec.guests.some((g) => g.name === dec.from_guest)) {
+      warn("W013", "decor.from_guest", `from_guest「${dec.from_guest}」不在嘉宾名单里，请确认姓名拼写`);
+    }
   }
-  if (spec.mascot.preset === "custom" && spec.mascot.description && !/#[0-9A-Fa-f]{6}/.test(spec.mascot.description)) {
-    warn("W012", "mascot.description", "自定义吉祥物没给主色 HEX，模型很容易自由发挥；建议写明如 #FED754");
+  if (isStr(dec.accent_color) && !HEX_RE.test(dec.accent_color)) {
+    err("E065", "decor.accent_color", "accent_color 必须是 #RRGGBB 形式");
+  }
+  if (dec.preset !== "none" && !isStr(dec.accent_color) && dec.preset === "custom") {
+    warn("W012", "decor.accent_color", "自定义角色没指定点缀色 HEX，模型容易自由发挥；建议写明如 #FED754");
   }
 
   /* —— 色彩锁 —— */
   if (spec.palette) {
     const ok = typeof spec.palette === "object" && spec.palette.green === BRAND.green && spec.palette.ink === BRAND.ink;
-    if (!ok) err("E030", "palette", `色彩锁被修改。本系列固定 荧光绿 ${BRAND.green} + 深黑灰 ${BRAND.ink}，不得覆盖`);
-    else warn("W010", "palette", "spec 里的 palette 与品牌锁一致，已忽略（颜色由 SKILL 常量决定）");
+    if (!ok) err("E030", "palette", `主色锁被修改。本系列固定 荧光绿 ${BRAND.green} + 深黑灰 ${BRAND.ink}，不得覆盖`);
+    else warn("W010", "palette", "spec 里的 palette 与主色锁一致，已忽略（颜色由 SKILL 常量决定）");
   }
 
   /* —— Slogan —— */
@@ -315,53 +325,48 @@ function illustration(spec) {
   return (scenes[spec.illustration.scene] ?? scenes["sit-around"]).join("");
 }
 
-function mascotBlock(spec) {
-  const m = spec.mascot;
-  if (m.preset === "none") {
-    return "本图不放吉祥物：福利区右侧留白，用 2–3 个荧光绿四角星涂鸦收尾，禁止补任何角色。";
+/** 点缀角色：默认不画；topic 模式从嘉宾话题取意象，custom 模式按描述画 */
+function decorBlock(spec) {
+  const d = spec.decor;
+  if (d.preset === "none") {
+    return "本图不设点缀角色：右下角留白，用 2–3 个荧光绿四角星涂鸦收尾，禁止补任何角色或 IP。";
   }
-  const accessory = m.cup_brand
-    ? m.accessory.replace("{CUP}", m.cup_brand)
-    : "无固定道具，手部自然摆放（不要强行加杯子）";
-  if (m.preset === "custom") {
+  const accent = isStr(d.accent_color) ? `主色 ${d.accent_color}（这是本图唯一允许的非品牌点缀色）` : "配色从描述里取，但只能出现一种非品牌色";
+  const props = isStr(d.props) ? `；道具：${d.props}` : "";
+
+  if (d.preset === "custom") {
     return (
-      `坐在地上的吉祥物${m.name}：${m.description}；道具：${accessory}；` +
-      "身下垫一片边缘毛糙的荧光绿 #B1FA63 笔刷水洼；旁边可配绿色手写拟声词与一段 C 形涂鸦。"
+      `右下角画一个与本期内容呼应的小角色/小物件：${d.description}；${accent}${props}；` +
+      "手绘线稿、4–5px 墨黑描边、坐姿；身下垫一片边缘毛糙的荧光绿 #B1FA63 笔刷水洼；旁边可配绿色手写拟声词。"
     );
   }
+
+  const guest = spec.guests.find((g) => g.name === d.from_guest);
+  const topic = guest?.topic ?? "";
+  const hint = isStr(d.description) ? `参考意象：${d.description}。` : "";
   return (
-    `坐在地上的吉祥物${m.name}：圆润梨形、头身一体无脖子、宽度略大于高度、软乎乎；` +
-    `身体主色为暖黄 #FED754（不是荧光绿），5px 墨黑描边；一只黑豆眼带白色高光点，另一只是「>」形笑眼，橙色椭圆小嘴；` +
-    `双手捧一只${accessory}；` +
-    "身下垫一片边缘毛糙的荧光绿 #B1FA63 笔刷水洼；右侧配绿色手写「Hi!」与一段 C 形涂鸦。"
+    `右下角画一个**从内容里长出来的**小角色：取材自「${d.from_guest}」的分享主题「${topic}」。` +
+    `从这句标题里挑一个最具体的名词意象（人物、动物、物件都行），画成圆润可爱的简笔小角色，让人一看就懂这是在呼应这场分享。${hint}` +
+    `${accent}${props}；手绘线稿、4–5px 墨黑描边、坐姿；身下垫一片边缘毛糙的荧光绿 #B1FA63 笔刷水洼；旁边配绿色手写拟声词。` +
+    "禁止：把角色做成品牌吉祥物、加腮红以外的细节、写实化、加毛发、加 3D 光影。"
   );
 }
 
 function elementRepair(spec) {
-  const m = spec.mascot;
-  if (m.preset === "none") {
+  const d = spec.decor;
+  if (d.preset === "none") {
     return (
       "请只重绘右侧叙事插画，保持它的位置、尺寸与整体构图不变。\n" +
       illustration(spec) +
       "\n除插画区外，其余一律保持不动。"
     );
   }
-  const accessory = m.cup_brand
-    ? m.accessory.replace("{CUP}", m.cup_brand)
-    : "无固定道具，手部自然摆放（不要强行加杯子）";
-  if (m.preset === "custom") {
-    return (
-      `请只重绘右下角的吉祥物${m.name}，保持它的位置、尺寸、朝向与所在绿色笔刷水洼不变。\n` +
-      `${m.name}的准确形象：${m.description}；道具：${accessory}。\n` +
-      "禁止：改变主色、拉长身形、写实化、加毛发、加 3D 光影。"
-    );
-  }
   return (
-    `请只重绘右下角的吉祥物${m.name}，保持它的位置、尺寸、朝向与所在绿色笔刷水洼不变。\n` +
-    `${m.name}的准确形象：圆润梨形身体、头身一体没有脖子、宽度略大于高度；身体主色为暖黄 #FED754（不是荧光绿）；` +
-    `5px 墨黑描边；一只黑豆眼带白色高光点，另一只眼睛是「>」形笑眼；橙色椭圆小嘴；双手捧一只${accessory}；` +
-    "旁边保留绿色手写「Hi!」与 C 形涂鸦。\n" +
-    "禁止：改变颜色、拉长身形、写实化、加腮红以外的细节、加毛发、加 3D 光影。"
+    `请只重绘右下角那个小角色，保持它的位置、尺寸、朝向与所在绿色笔刷水洼不变。\n` +
+    `它的设定：${d.preset === "custom" ? d.description : `取材自嘉宾「${d.from_guest}」的分享主题「${spec.guests.find((g) => g.name === d.from_guest)?.topic ?? ""}」`}` +
+    `${isStr(d.accent_color) ? `；主色 ${d.accent_color}（唯一允许的非品牌色）` : ""}` +
+    `${isStr(d.props) ? `；道具：${d.props}` : ""}。\n` +
+    "禁止：改变主色、拉长身形、写实化、加毛发、加 3D 光影。"
   );
 }
 
@@ -369,9 +374,21 @@ function whitelist(spec) {
   const parts = ["页眉（Logo + slogan）", "主标题带", "副标题带", "时间", "地点", "嘉宾区", "福利区"];
   if (isStr(spec.one_liner)) parts.splice(3, 0, "一句话主张");
   if (spec.illustration.scene !== "none") parts.push("右侧插画");
-  if (spec.mascot.preset !== "none") parts.push("吉祥物");
+  if (spec.decor.preset !== "none") parts.push("右下角点缀角色");
   parts.push("装饰涂鸦");
   return parts.join("、");
+}
+
+function accentLine(spec) {
+  const d = spec.decor;
+  if (d.preset === "none" && !isStr(d.accent_color)) {
+    return "本图不使用点缀色：全图只有上面的五个主色，不得引入任何第六种颜色";
+  }
+  const hex = isStr(d.accent_color) ? d.accent_color : "由角色描述决定";
+  return (
+    `点缀色 ${hex} —— 全图只允许这一种非品牌色，面积 ≤ 6%，` +
+    "只能用在右下角角色/道具与 2–3 个小涂鸦上；禁止用于文字、标题带、副标题带、姓名 chip、图标底"
+  );
 }
 
 function render(template, spec, meta) {
@@ -402,27 +419,18 @@ function render(template, spec, meta) {
         ? "右侧留白处理（x 545–1010，y 615–1215）"
         : "右侧叙事插画（x 545–1010，y 615–1215）",
     AVATAR_STYLE: avatarStyle(spec),
-    MASCOT: mascotBlock(spec),
-    MASCOT_HEADING:
-      spec.mascot.preset === "none"
+    DECOR: decorBlock(spec),
+    DECOR_HEADING:
+      spec.decor.preset === "none"
         ? "右下角留白处理（x 620–1000，y 1230–1520）"
-        : "吉祥物（x 620–1000，y 1230–1520）",
-    MASCOT_NAME: spec.mascot.name || "（无）",
-    CUP_BRAND: spec.mascot.cup_brand || "",
+        : "右下角点缀角色（x 620–1000，y 1230–1520）",
+    ACCENT_LINE: accentLine(spec),
+    ACCENT_NOTE:
+      spec.decor.preset === "none" && !isStr(spec.decor.accent_color)
+        ? "本图没有点缀色，不要出现第六种颜色。"
+        : `点缀色只允许出现在右下角角色与 2–3 个小涂鸦上。`,
     ELEMENT_REPAIR: elementRepair(spec),
     WHITELIST: whitelist(spec),
-    PALETTE_MASCOT_LINE:
-      spec.mascot.preset === "none"
-        ? "#FED754 吉祥物黄 —— 本图不使用吉祥物，该色不得出现在画面中"
-        : spec.mascot.preset === "custom"
-          ? "#FED754 吉祥物黄 —— 仅当自定义吉祥物描述里用到时才出现"
-          : "#FED754 吉祥物黄 —— 仅吉祥物身体",
-    MASCOT_COLOR_NOTE:
-      spec.mascot.preset === "none"
-        ? "吉祥物身体色 #FED754 不存在于本图。"
-        : spec.mascot.preset === "custom"
-          ? "吉祥物配色严格按本规格中的描述，不得额外引入第二种强调色。"
-          : "吉祥物身体固定 #FED754。",
     GENERATED_AT: meta.generatedAt,
   };
 
@@ -467,6 +475,12 @@ function printReport(spec, list) {
   const errors = list.filter((i) => i.level === "error");
   const warns = list.filter((i) => i.level === "warn");
   const line = "─".repeat(60);
+  const decorLabel =
+    spec.decor.preset === "none"
+      ? "无"
+      : spec.decor.preset === "topic"
+        ? `取材于「${spec.decor.from_guest}」`
+        : "自定义";
 
   console.log(line);
   console.log("IF.Link Meetup 海报 · 规格校验");
@@ -475,9 +489,9 @@ function printReport(spec, list) {
   console.log(`地点：${spec.location}`);
   console.log(`嘉宾：${spec.guests.length} 位 ｜ 画布：${spec.canvas} ｜ 变体：${spec.variant}`);
   console.log(
-    `插画：${spec.illustration.scene} ｜ 吉祥物：${spec.mascot.preset === "none" ? "无" : spec.mascot.name} ｜ 主张行：${isStr(spec.one_liner) ? "有" : "无"}`,
+    `插画：${spec.illustration.scene} ｜ 点缀角色：${decorLabel} ｜ 主张行：${isStr(spec.one_liner) ? "有" : "无"}`,
   );
-  console.log(`色彩锁：${BRAND.green} / ${BRAND.ink} / ${BRAND.cream}  [已锁定]`);
+  console.log(`主色锁：${BRAND.green} / ${BRAND.ink} / ${BRAND.cream}  [已锁定]`);
   console.log(line);
 
   if (errors.length === 0 && warns.length === 0) {
