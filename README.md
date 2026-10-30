@@ -20,18 +20,29 @@ Skill 内部结构见 [`.dsh/skills/iflink-meetup-poster/README.md`](.dsh/skills
 
 ```bash
 cd ".dsh/skills/iflink-meetup-poster"
-cp templates/meetup-spec.example.json build/spec.json   # 改成本期活动
+
+# ① 录活动信息（三选一：交互问答 / 填表 / 空白骨架）
+node scripts/new-spec.mjs --out build/spec.json
+# cp templates/intake-form.md build/intake.md && node scripts/new-spec.mjs --from build/intake.md --out build/spec.json
+
+# ② 装配提示词（校验 + 渲染）
 node scripts/build-prompt.mjs build/spec.json --out build/prompt.md
+
+# ③ 成图后量测品牌色
 python scripts/check-palette.py build/poster.png --debug
 ```
+
+> 模板里**没有任何具体活动内容**：活动名、时间、地点、嘉宾、福利全部来自 `spec.json`。
+> `templates/sample-a-original.json`（原作）与 `sample-b-product.json`（另一场活动）只是填法样例。
 
 ## 设计要点
 
 1. **色彩锁**：`#B1FA63` 荧光绿 / `#242021` 深黑灰 / `#F6F6F1` 奶油白，占比 7:1:1，禁用参考图橙红 `#FE7733`。
-2. **版式锁**：左基准线 x=54、绿块与黑块紧贴、左信息右插画，坐标级写进提示词。
+2. **版式锁**：左基准线 x=54、绿块与黑块紧贴、左信息右插画，坐标级写进提示词；嘉宾 2 / 3–4 / 5–6 位自动切节距与字号。
 3. **内容锁**：文案逐字清单 + 元素白名单，禁止模型加戏（主办/二维码/赞助）。
 4. **闸门制**：G1 内容 / G2 色彩 / G3 版式 / G4 字体 / G5 图形 / G6 品牌资产，任一 FAIL 不交付。
 5. **锁区域迭代**：每轮只改一处，禁止整版重生成 —— 原作"越改越乱"的根因就在这里。
+6. **可选视觉钩子**：插画场景（围坐/白板/协作/无/自定义）与吉祥物（奶龙/自定义/无）都可按场次切换，缺省即关闭。
 
 ## 溯源
 
@@ -44,10 +55,10 @@ python scripts/check-palette.py build/poster.png --debug
 推送请走本地代理 + openssl 后端：
 
 ```powershell
-pwsh -File tools/push-to-github.ps1              # 默认代理 127.0.0.1:7897，分支 main
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\push-to-github.ps1   # 或 pwsh -File（若已装 PowerShell 7）
 ```
 
 脚本运行时才从 `gh auth token` 取凭证，不落盘、不入库。
 
 ---
-v1.0.0 · 2026-10 · IF.Link 品牌组
+v1.1.0 · 2026-10 · IF.Link 品牌组

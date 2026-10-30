@@ -3,8 +3,36 @@
 ## 一、一句话原则
 
 > **只问 6 个必填，其余全给默认值。** 用户给一段散装中文，由你替他结构化成 `spec.json`，再回读一遍确认 —— 不要让用户填表。
+> **模板里没有任何一场具体活动的信息**，所有内容都从入参来。
 
-## 二、字段总表
+## 二、三种录入方式
+
+| 方式 | 适用 | 命令 |
+| --- | --- | --- |
+| **说人话** | 用户随手一段中文 | 由 agent 直接产出 spec.json（本文件第二节就是字段对照） |
+| **填表** | 用户想自己写清楚 | `cp templates/intake-form.md build/intake.md` → 填 → `node scripts/new-spec.mjs --from build/intake.md --out build/spec.json` |
+| **交互 / 骨架** | 想一步步来 | `node scripts/new-spec.mjs --out build/spec.json`／`--blank`／改 `templates/spec.minimal.json` |
+
+填表格式（脚本按「键：值」解析，`<!-- -->` 注释会被自动忽略）：
+
+```markdown
+活动名称：IF.Link Meetup #12
+主题行：产品 × 设计 × 复盘
+时间：11 月 14 日（周五）晚 19:30–21:00
+地点：东南大学九龙湖校区纪忠楼 2 楼 206
+一句话：（可空，空了就不放这一行）
+
+嘉宾：
+- 周予安｜女｜从 0 到 1 做一个校园二手交易小程序｜齐肩短发
+- 林知远｜男｜AI 生成内容的产品化边界｜短发戴黑框眼镜
+
+福利标题：到场福利
+福利：人手一杯奶茶，先到先得
+插画场景：白板
+吉祥物：无
+```
+
+## 三、字段总表
 
 ### 必填（6）
 
@@ -30,13 +58,17 @@
 
 | 字段 | 默认 | 说明 |
 | --- | --- | --- |
-| `one_liner` | `和一群有趣的人，一起聊聊 AI 的更多可能` | 单行主张，建议 ≤ 26 字 |
+| `one_liner` | **空** | 单行主张；**留空则整行不出**，标题带下方留 70px 呼吸。建议 ≤ 26 字 |
 | `guest_section_title` | `分享嘉宾 & 主题` | 区块标 |
 | `perks_title` | `小福利` | 笔刷块上的标题 |
-| `mascot.enabled` | `true` | 是否放吉祥物 |
-| `mascot.name` | `奶龙` | 吉祥物名 |
-| `mascot.cup_brand` | `IF.Link` | 杯身竖排文字 |
-| `slogan` | `Link the IFs, Connect the Dots` | **锁定**，改动即 E031 |
+| `illustration.scene` | `sit-around` | 右侧插画场景，见下 |
+| `illustration.description` | 空 | `scene: custom` 时必填（E061） |
+| `mascot.preset` | `none` | `nailong` / `custom` / `none` |
+| `mascot.name` | 空 | 有吉祥物时必填（E064） |
+| `mascot.cup_brand` | 空 | 杯身/道具上的竖排文字 |
+| `mascot.description` | 空 | `preset: custom` 时必填（E063），建议含主色 HEX |
+| `slogan` | `Link the IFs, Connect the Dots` | **锁定**，改动即 E031（除非 `allow_slogan_override: true`） |
+| `allow_slogan_override` | `false` | 显式授权后才允许改 slogan |
 | `variant` | `cream` | `cream`（原作同款）/ `dark`（黑底变体） |
 | `logo_variant` | 随 `variant` 派生 | `light` = 黑字版；`dark` = 白字版。与底色不匹配直接 E042 |
 | `canvas` | `1024x1536` | 或 `1536x2304`（印刷 1.5×） |
@@ -44,32 +76,51 @@
 | `forbidden_additions` | `[]` | 追加本项目特有的"不许加"元素 |
 | `notes` | 空 | 备注，会参与加戏检测 |
 
-## 三、spec.json 骨架
+### 插画场景（`illustration.scene`）
+
+| 值 | 画面 | 适合 |
+| --- | --- | --- |
+| `sit-around` | 围坐 + 白板 + 笔电 + 饮品（原作场景） | 通用分享会 |
+| `whiteboard` | 一人白板前讲解，其余人聆听/举手 | 技术分享、教学型 Meetup |
+| `collab` | 围桌协作、多双手指向屏幕 | 工作坊、共创会 |
+| `none` | 不放插画，右侧留白 + 涂鸦呼吸 | 嘉宾多、信息重时 |
+| `custom` | 用 `description` 自定义（≤ 200 字） | 特殊主题 |
+
+### 吉祥物（`mascot.preset`）
+
+| 值 | 行为 |
+| --- | --- |
+| `nailong` | 内置奶龙规范（圆润梨形、`#FED754`、豆眼+笑眼、橙嘴、捧杯、绿色笔刷水洼）；同时生成专用重绘模板 |
+| `custom` | 按 `description` 描述（建议写明形状/主色 HEX/描边/五官/道具）；未给 HEX 会 W012 |
+| `none` | 不放吉祥物；提示词、白名单、配色表、修复模板全部自动去掉该元素 |
+
+## 四、spec.json 骨架
 
 ```json
 {
   "series": "Meetup",
-  "event_name": "IF.Link Meetup",
-  "kicker": "AI × 创作 × 交流",
-  "one_liner": "和一群有趣的人，一起聊聊 AI 的更多可能",
-  "date_time": "10 月 31 日（周六）晚 19:00–21:00",
-  "location": "东南大学四牌楼校区梅庵书院 110 室",
-  "guest_section_title": "分享嘉宾 & 主题",
+  "event_name": "IF.Link Meetup #12",
+  "kicker": "产品 × 设计 × 复盘",
+  "one_liner": "",
+  "date_time": "11 月 14 日（周五）晚 19:30–21:00",
+  "location": "东南大学九龙湖校区纪忠楼 2 楼 206",
+  "guest_section_title": "本期分享",
   "guests": [
-    { "name": "罗丽", "topic": "如何成为一只会做推送的奶龙", "gender": "female", "hair": "黑色长发" }
+    { "name": "周予安", "topic": "从 0 到 1 做一个校园二手交易小程序", "gender": "female", "hair": "齐肩短发" }
   ],
-  "perks_title": "小福利",
-  "perks_text": "到场有好吃好喝茶歇等着你",
-  "mascot": { "enabled": true, "name": "奶龙", "cup_brand": "IF.Link" },
+  "perks_title": "到场福利",
+  "perks_text": "人手一杯奶茶，先到先得",
+  "illustration": { "scene": "whiteboard", "description": "" },
+  "mascot": { "preset": "none", "name": "", "cup_brand": "", "description": "" },
   "slogan": "Link the IFs, Connect the Dots",
   "variant": "cream",
   "canvas": "1024x1536"
 }
 ```
 
-可直接复制 `templates/meetup-spec.example.json` 改字段，它就是原作定稿参数。
+完整可跑样例：`templates/sample-a-original.json`（原作）、`templates/sample-b-product.json`（另一场活动）。
 
-## 四、校验码表（`scripts/build-prompt.mjs` 实现）
+## 五、校验码表（`scripts/build-prompt.mjs` 实现）
 
 | 码 | 级别 | 含义 | 处理 |
 | --- | --- | --- | --- |
@@ -84,32 +135,42 @@
 | E013 | error | `gender` 非法 | 必须是 female/male/other |
 | E020 | error | 福利文案越界 | 4–24 字 |
 | E030 | error | 有人改色彩锁 | 拒绝，品牌色不可覆盖 |
-| E031 | error | slogan 被改 | 拒绝，回退标准写法 |
+| E031 | error | slogan 被改 | 拒绝；确需改要 `allow_slogan_override` |
 | E040 | error | variant 非法 | cream / dark |
 | E041 | error | canvas 非法 | 1024x1536 / 1536x2304 |
 | E042 | error | Logo 版本与底色不匹配 | 换对应版本 |
 | E050 | error | 出现白名单外元素（主办/二维码/…） | 删除该信息 |
+| E060 | error | 插画场景非法 | 见场景表 |
+| E061 | error | `scene: custom` 但没描述 | 补 `illustration.description` |
+| E062 | error | 吉祥物 preset 非法 | nailong / custom / none |
+| E063 | error | `preset: custom` 但没描述 | 补 `mascot.description` |
+| E064 | error | 有吉祥物但没 name | 补名字 |
 | W001 | warn | 话题含易混字 | 人工查证（原作「镣铐」→「镲锜」） |
 | W002 | warn | 话题 36–42 字 | 成图后逐字核对 |
 | W003 | warn | 主张 > 26 字 | 会换行破坏单行结构 |
-| W004 | warn | 嘉宾 > 4 位 | 压缩节距，注意行数 |
-| W005 | warn | 主题行无 `×` 或 > 16 字 | 检查分隔符 |
+| W004 | warn | 嘉宾 5–6 位 | 紧凑版式，注意挤压 |
+| W005 | warn | 主题行无分隔符或 > 16 字 | 检查 |
 | W006 | warn | 主标题不含「IF.」 | 确认是本系列 |
 | W007/W008 | warn | 时间/地点偏长 | 建议压缩 |
 | W009 | warn | 发型描述 > 14 字 | 头像只有 96px |
 | W010 | warn | spec 里重复声明 palette | 以 SKILL 常量为准 |
+| W011 | warn | 自定义插画描述 > 200 字 | 压到 120 字内 |
+| W012 | warn | 自定义吉祥物没给主色 HEX | 补 HEX，否则模型自由发挥 |
 
 **退出码**：`0` 通过（可带 warning）｜`1` 有 error｜`2` 用法或 IO 错误。可直接接进 CI 或批量脚本。
 
-## 五、字段 → 画面映射（改哪里会动到哪里）
+## 六、字段 → 画面映射（改哪里会动到哪里）
 
 | 字段 | 落在画面 | 改动影响 |
 | --- | --- | --- |
 | `event_name` | y 134–248 绿块 | 字越多色块越宽，> 28 字压到右栏 |
 | `kicker` | y 262–362 黑块 | 同上 |
-| `one_liner` | y 385 单行 | > 26 字换行，会把时间行往下挤 |
+| `one_liner` | y 385 单行 | 空 → 整行消失、留 70px；> 26 字换行会挤时间行 |
 | `date_time` / `location` | y 455 / y 500 | 超长会顶到嘉宾区 |
 | `guests[].name` | 绿 chip | > 6 字 chip 溢出 |
-| `guests[].topic` | chip 下方 | > 3 行会挤压下一位嘉宾 |
+| `guests[].topic` | chip 下方 | > 3 行会挤压下一位嘉宾（5–6 位时上限 2 行） |
+| `guests.length` | 整段节距 | 2 位疏排 / 3–4 位标准 / 5–6 位紧凑，字号与头像同步缩放 |
+| `illustration.scene` | 右侧 x 545–1010 | `none` 时整块变留白 |
+| `mascot.preset` | 右下 x 620–1000 | `none` 时变留白 + 涂鸦 |
 | `perks_text` | y 1330 斜排 | > 24 字超出笔刷块 |
 | `variant` | 整张底色 | 会连带切换 Logo 版本 |

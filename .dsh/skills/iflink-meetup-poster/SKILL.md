@@ -1,4 +1,4 @@
-﻿---
+---
 name: iflink-meetup-poster
 description: IF.Link Meetup 系列活动海报的标准化生成与质检工作流。把活动信息（时间/地点/嘉宾/福利）规范化后，产出可直接投喂图像模型的整版提示词、局部重绘提示词、质检报告与批量清单，稳定复现「奶油白画布 + 深黑灰墨块 + 荧光绿 #B1FA63 + 手绘线稿插画」的原作质感。当用户要做 Meetup / 线下分享会 / 沙龙活动海报，要复刻这张绿黑手绘风海报，或要把系列活动海报批量标准化产出时使用。
 whenToUse: 用户提到「Meetup 海报」「活动海报」「分享会海报」「IF.Link 海报」「复刻这张海报」「批量出海报」，或直接给出活动时间/地点/嘉宾/福利并要求出海报时。
@@ -16,12 +16,17 @@ metadata:
 
 ## 0. 这个 Skill 解决什么
 
+> **先明确一件事：这个 Skill 里没有任何一场具体活动的内容。**
+> 模板、脚本、母版里只有占位符与视觉规则；活动名、时间、地点、嘉宾、福利全部来自用户的入参。
+> `templates/sample-*.json` 只是两个填法样例（A＝原作定稿，B＝另一场完全不同的活动），拿来对照格式，不是默认值。
+
 | 问题 | 本 Skill 的做法 |
 | --- | --- |
 | 同样的活动，每次生成风格都不一样 | 视觉体系写成**硬约束**（坐标 / 字号 / 配色比），提示词里逐条钉死 |
 | 模型把品牌绿画成参考图的橙红 | **色彩锁**：给定 HEX + 占比区间 + 禁用色黑名单，并用脚本量测成图 |
 | 文字被模型写错、写漏、写变形 | 内容锁：逐字清单 + 中文固定搭配校验 + 生成后 OCR 式比对 |
 | 加戏（多出"联合主办"、多出没要求的信息块） | 元素白名单：**只允许出现清单内的元素** |
+| 每期活动人数、场景都不一样 | 版式**按嘉宾数自适应**（2/3–4/5–6 三档节距），插画场景与吉祥物可切换或关闭 |
 | 吉祥物/头像被画崩 | 单独走「局部重绘」提示词，不参与整版重生成 |
 | 改一处崩全部 | **锁区域迭代**：每轮只允许改动指定区域 |
 
@@ -33,20 +38,32 @@ metadata:
 
 **不适用**：横版 Banner、H5 长图、PPT 封面、需要真实人像摄影的作品 —— 请明确告知用户并建议其他通道。
 
-## 2. 快速开始（3 步）
+## 2. 快速开始：任选一种入参方式
+
+### 方式 A · 直接说人话（最省事，推荐）
+
+用户随口给一段中文就行：「11 月 14 号周五晚七点半，九龙湖纪忠楼，聊聊产品复盘，两位嘉宾……」
+→ **由你把这段话结构化成 spec.json**（字段见 `references/02-input-schema.md`），回读一遍确认，然后走方式 C 的第 2 步。
+
+### 方式 B · 填表
 
 ```bash
-# 1) 复制模板，填活动信息
-cp templates/meetup-spec.example.json build/spec.json
-
-# 2) 校验 + 装配整版提示词（会同时打印校验结果）
-node scripts/build-prompt.mjs build/spec.json --out build/prompt.md
-
-# 3) 生成后量测成图配色是否守住品牌色
-python scripts/check-palette.py build/poster.png
+cp templates/intake-form.md build/intake.md     # 用中文填「活动名称：…」这种行
+node scripts/new-spec.mjs --from build/intake.md --out build/spec.json
 ```
 
-第 2 步输出的 `build/prompt.md` 即为投喂给图像模型（ChatGPT Image 2 / 同类）的**成品提示词**，含整版提示词、局部重绘提示词与负向清单。
+### 方式 C · 命令行 / 骨架 / 交互
+
+```bash
+node scripts/new-spec.mjs --out build/spec.json        # 交互问答，全部可回车跳过
+node scripts/new-spec.mjs --blank --out build/spec.json # 生成空白骨架自己填
+# 或者复制 templates/spec.minimal.json 手填
+
+node scripts/build-prompt.mjs build/spec.json --out build/prompt.md   # 校验 + 装配
+python scripts/check-palette.py build/poster.png                       # 成图后量测配色
+```
+
+第 2 步输出的 `build/prompt.md` 即为投喂给图像模型（ChatGPT Image 2 / 同类）的**成品提示词**，含整版提示词、局部重绘提示词、负向清单与质检卡。
 
 ## 3. 用户入参（极简版）
 
@@ -54,14 +71,28 @@ python scripts/check-palette.py build/poster.png
 
 | # | 参数 | 必填 | 默认 | 说明 |
 | --- | --- | --- | --- | --- |
-| 1 | `event_name` | ✅ | `IF.Link Meetup` | 主标题，逐字上版 |
-| 2 | `kicker` | ✅ | `AI × 创作 × 交流` | 黑底白字副标题，含 `×` |
+| 1 | `event_name` | ✅ | — | 主标题，逐字上版 |
+| 2 | `kicker` | ✅ | — | 黑底白字副标题，含 `×` |
 | 3 | `date_time` | ✅ | — | 例：`10 月 31 日（周六）晚 19:00–21:00` |
 | 4 | `location` | ✅ | — | 校区 + 楼宇 + 房间号 |
 | 5 | `guests[]` | ✅ | — | 1–6 位，`name` + `topic` + `gender` |
 | 6 | `perks_text` | ✅ | — | 福利一句话 |
 
-选填与完整字段（`one_liner`、`guest_section_title`、`perks_title`、`mascot`、`slogan`、`variant`、`logo_variant`…）见 **[references/02-input-schema.md](references/02-input-schema.md)**。
+**选填（有安全默认值，通常不用问）**：
+
+| 参数 | 默认 | 作用 |
+| --- | --- | --- |
+| `one_liner` | 空 | 一句话主张；留空则整行不出，标题带下方留 70px 呼吸 |
+| `guest_section_title` | `分享嘉宾 & 主题` | 嘉宾区块标 |
+| `perks_title` | `小福利` | 笔刷块标题 |
+| `illustration.scene` | `sit-around` | `sit-around` 围坐 / `whiteboard` 白板 / `collab` 协作 / `none` 不放 / `custom` |
+| `illustration.description` | — | `custom` 时必填 |
+| `mascot.preset` | `none` | `nailong` 奶龙 / `custom` 自定义 / `none` 不放 |
+| `slogan` | `Link the IFs, Connect the Dots` | 锁定；改需 `allow_slogan_override` |
+| `variant` | `cream` | 奶油白底 / `dark` 黑底（自动切 Logo 版本） |
+| `canvas` | `1024x1536` | 或 `1536x2304` |
+
+字段全表、22 个校验码、字段→画面映射见 **[references/02-input-schema.md](references/02-input-schema.md)**。
 
 > 用户只给一段散装中文时，**由你替他结构化**成 spec.json，再回读一遍确认，不要反问十个问题。
 
@@ -200,8 +231,12 @@ iflink-meetup-poster/
 │       ├── IF.Link_浅色背景.svg       # 浅底用 Logo（黑字）
 │       └── IF.Link_深色背景.svg       # 深底用 Logo（白字）
 ├── templates/
-│   └── meetup-spec.example.json      # 入参样例（可直接改）
+│   ├── intake-form.md                # 中文填表（粘给 new-spec.mjs 即可）
+│   ├── spec.minimal.json             # 空白骨架
+│   ├── sample-a-original.json        # 样例 A：原作定稿（4 位嘉宾 + 奶龙）
+│   └── sample-b-product.json         # 样例 B：另一场活动（2 位嘉宾、白板、无吉祥物、无主张行）
 └── scripts/
+    ├── new-spec.mjs                  # 人话/填表 → spec.json（交互 / --from / --blank）
     ├── build-prompt.mjs              # 校验 + 提示词装配（零依赖 Node）
     └── check-palette.py              # 成图配色闸门（Pillow）
 ```
@@ -210,16 +245,18 @@ iflink-meetup-poster/
 
 一次活动会话可批量出 N 期：
 
-1. 建 `build/series/`，每期一个 `spec-<YYYYMMDD>.json`。
+1. 建 `build/series/`，每期一个 `spec-<YYYYMMDD>.json`（可以全部用 `new-spec.mjs` 从填表批量生成）。
 2. 循环跑 `build-prompt.mjs` 生成 N 份提示词；整版提示词的**视觉段落完全一致**，只有【活动信息】段不同 —— 这是系列统一感的来源。
 3. 成图后逐张跑 `check-palette.py`，全部 PASS 才算收工。
 4. 汇总成 `build/series/index.md`：日期 / 主题 / 终稿文件名 / 闸门结果。
+
+> 批量时唯一需要人盯的是**嘉宾人数变化**：2 位走疏排、3–4 位走标准、5–6 位走紧凑，`build-prompt.mjs` 会自动切换节距与字号（W004 会提醒 5–6 位的挤压风险）。
 
 ## 9. 硬性红线（任何情况下不破）
 
 1. **色彩锁**：`#B1FA63` 荧光绿 + `#242021` 深黑灰 是系列活动唯一品牌色，不得被参考图、模型偏好或用户临时的"换个色试试"污染；用户确需换色时，提醒这会破坏系列一致性，并另存 `variant`。
 2. **Logo 锁**：Logo 是定制图形，只做等比放置，不重绘、不描边、不换字重字距、不反色。多种 Logo 并排时高度必须一致。
 3. **Slogan 锁**：`Link the IFs, Connect the Dots`（`IFs` 复数、`Dots` 大写 D）。原作曾出现 "Link the Dots, connect the Dots." 的错误版本，务必逐字校对。
-4. **内容锁**：姓名、时间、地点、话题一字不改，不替用户"优化"表达。
+4. **内容锁**：姓名、时间、地点、话题一字不改，不替用户"优化"表达；**也不要拿任何一期的内容当默认值写进模板**。
 5. **元素白名单**：只允许出现 页眉 / 标题带 / 副标题带 / 一句主张 / 时间地点 / 嘉宾区 / 福利区 / 插画 / 吉祥物。没有联合主办就不要有联合主办。
 6. **可复现**：任何时候拿到 `spec.json`，都应能重建同一张海报。

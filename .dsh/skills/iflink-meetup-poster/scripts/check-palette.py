@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
 check-palette.py — IF.Link Meetup 海报「色彩锁」闸门（G2）

@@ -1,0 +1,21 @@
+{
+  "_说明": "样例 B：一场完全不同活动的填写示范 —— 2 位嘉宾、白板场景、不放吉祥物、不设一句话主张。用来证明同一套视觉母版可以承接任何 Meetup 内容。",
+  "series": "Meetup",
+  "event_name": "IF.Link Meetup #12",
+  "kicker": "产品 × 设计 × 复盘",
+  "one_liner": "",
+  "date_time": "11 月 14 日（周五）晚 19:30–21:00",
+  "location": "东南大学九龙湖校区纪忠楼 2 楼 206",
+  "guest_section_title": "本期分享",
+  "guests": [
+    { "name": "周予安", "topic": "从 0 到 1 做一个校园二手交易小程序：踩过的 5 个坑", "gender": "female", "hair": "齐肩短发" },
+    { "name": "林知远", "topic": "AI 生成内容的产品化边界：我们在什么时候选择不用 AI", "gender": "male", "hair": "短发、戴黑框眼镜" }
+  ],
+  "perks_title": "到场福利",
+  "perks_text": "人手一杯奶茶，先到先得 ☕",
+  "illustration": { "scene": "whiteboard", "description": "" },
+  "mascot": { "preset": "none", "name": "", "cup_brand": "", "description": "" },
+  "slogan": "Link the IFs, Connect the Dots",
+  "variant": "cream",
+  "canvas": "1024x1536"
+}
