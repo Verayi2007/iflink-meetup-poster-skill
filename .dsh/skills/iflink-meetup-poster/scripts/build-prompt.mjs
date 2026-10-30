@@ -643,16 +643,180 @@ function compactPrompt(spec) {
   return lines.join("\n");
 }
 
+/* ────────────────────────────── Image 2 投喂包 ────────────────────────────── */
+
+/** 从渲染好的提示词包里抽出「① 整版提示词」那段，供直接粘贴 */
+function extractMainPrompt(rendered) {
+  const start = rendered.indexOf("## ① 整版提示词");
+  const fence = rendered.indexOf("```text", start);
+  const bodyStart = rendered.indexOf("\n", fence) + 1;
+  const end = rendered.indexOf("```", bodyStart);
+  return rendered.slice(bodyStart, end).trim();
+}
+
+function repairScripts(spec) {
+  const guestList = spec.guests.map((g) => `${g.name}（${GENDER_LABEL[g.gender]}）｜${g.topic}`).join("\n");
+  return [
+    "# 返修话术（一次只贴一条，改完再改下一条）",
+    "",
+    "## ① 有字写错 / 漏字 / 被裁切",
+    "```text",
+    "请只重画下面这一行文字，字号、字重、颜色、位置、对齐方式完全保持现状，其他区域一个像素都不要动。",
+    "正确文字（逐字、含标点）：",
+    "  <把出问题的那一行原文贴在这里>",
+    "不要重排版式，不要改动这一行以外的任何内容。",
+    "```",
+    "",
+    "## ② 配色跑偏（绿变草绿/黄绿，或冒出橙红）",
+    "```text",
+    "整张海报的强调色出现偏移。请把所有不属于 #B1FA63 的绿色统一校正为荧光绿 #B1FA63；",
+    "黑色块与文字统一为 #242021；底色为 #F6F6F1。",
+    `若画面中出现任何橙红（如 #FE7733），全部替换为荧光绿 #B1FA63。`,
+    spec.decor.preset !== "none" && isStr(spec.decor.accent_color)
+      ? `点缀色只允许出现在右下角角色与 2–3 个小涂鸦上，色值为 ${spec.decor.accent_color}，面积不超过画面 6%。`
+      : "本图不应出现任何非品牌色，全部收回到上述三色。",
+    "除颜色外，其余一律保持不动。",
+    "```",
+    "",
+    "## ③ 多出了没要求的东西（主办方 / 二维码 / 旧文案）",
+    "```text",
+    "请删除画面中所有不在下面清单里的文字与信息块，只保留：活动名称、主题行、时间、地点、嘉宾、福利、页眉 Logo 与 slogan。",
+    "不得出现主办/联合主办/承办/二维码/报名链接/赞助商；删除参考图里原有的全部文字与旧角色。",
+    "删除后留白，不要补任何新内容。",
+    "```",
+    "",
+    "## ④ 头像性别 / 发型不对",
+    "```text",
+    "请只修改嘉宾头像，其余文字与元素保持不动。正确的人物形象：",
+    guestList,
+    "只改头像，不要改姓名、话题、字号与位置。",
+    "```",
+    "",
+    "## ⑤ 右下角角色崩了（变色 / 变形）",
+    "```text",
+    `请只重绘右下角那个小角色，位置、尺寸、朝向与其下的绿色笔刷阴影保持不变。`,
+    `它的设定：${spec.decor.preset === "custom" ? spec.decor.description : `取自嘉宾「${spec.decor.from_guest}」话题「${spec.guests.find((g) => g.name === spec.decor.from_guest)?.topic ?? ""}」的意象`}`,
+    spec.decor.preset !== "none" && isStr(spec.decor.accent_color) ? `主色 ${spec.decor.accent_color}（本图唯一允许的非品牌色）。` : "配色从描述里取，只允许一种非品牌色。",
+    "手绘线稿、4–5px 墨黑描边；禁止写实化、加毛发、加 3D 光影、加渐变。",
+    "```",
+    "",
+    "## ⑥ 整体太散 / 字体乱",
+    "```text",
+    "请基于现有海报精修，保持构图与信息不变，只修这四件事：",
+    "1. 统一字体：全图只用思源黑体系，标题 900、副标题 800、正文 500，行距一致。",
+    "2. 统一对齐：所有元素咬住同一个左边距，嘉宾条目等距。",
+    "3. 提升层级：活动名最醒目，时间地点次之，嘉宾信息整齐排列。",
+    "4. 清理瑕疵：边缘错位、留白不均、色块毛刺、残影、重复元素。",
+    "不要改动任何文字内容。",
+    "```",
+  ].join("\n");
+}
+
+async function writeImage2Pack(dir, { rendered, spec }) {
+  const { copyFile } = await import("node:fs/promises");
+  const out = path.resolve(dir);
+  await mkdir(out, { recursive: true });
+
+  const refDir = path.join(SKILL_ROOT, "assets", "reference");
+  await copyFile(path.join(refDir, "final-poster.png"), path.join(out, "01_参考图.png"));
+  const logoFile = spec.logo_variant === "dark" ? "IF.Link_深色背景.svg" : "IF.Link_浅色背景.svg";
+  await copyFile(path.join(refDir, logoFile), path.join(out, "02_Logo.svg"));
+
+  const main = extractMainPrompt(rendered);
+  await writeFile(
+    path.join(out, "03_整版提示词_复制这一段.txt"),
+    [
+      `# ${spec.event_name} · ${spec.kicker}`,
+      "# 用法：先把 01_参考图.png 和 02_Logo.svg 传进 ChatGPT，再把下面这段整段粘进去。",
+      "",
+      main,
+    ].join("\n"),
+    "utf8",
+  );
+
+  await writeFile(path.join(out, "04_返修话术.txt"), repairScripts(spec), "utf8");
+
+  await writeFile(
+    path.join(out, "00_怎么用.md"),
+    [
+      `# ${spec.event_name} 海报 · Image 2 投喂包`,
+      "",
+      "## 三步",
+      "",
+      "1. 打开 ChatGPT（用 Image 2），**先传两张图**：`01_参考图.png`、`02_Logo.svg`。",
+      "2. 传完补一句：**「Logo 是定制图形，禁止重绘、改字重、改字距、改色」**。",
+      "3. 打开 `03_整版提示词_复制这一段.txt`，从「【角色】」开头整段复制，粘进去，发。",
+      "",
+      "## 出图之后",
+      "",
+      "- 按 `05_质检卡.md` 逐项打勾；任何一项不对，就从 `04_返修话术.txt` 里挑对应的一条贴进去。",
+      "- **一次只修一处**，修完再修下一处；不要让它整版重来（越改越乱就是这个原因）。",
+      "- 想要多挑一挑，可以追加一句：**「用同样的内容，再给我 3 个不同版式方案，画风保持一致」**。",
+      "",
+      "## 常见坑",
+      "",
+      "| 现象 | 原因 | 怎么办 |",
+      "| --- | --- | --- |",
+      "| 冒出一整句参考图里的旧文案 | 参考图内容泄漏 | 用返修话术 ③ |",
+      "| 绿得发黄 / 发暗 | 模型对「荧光绿」理解漂移 | 用返修话术 ② |",
+      "| 嘉宾序号「嘉宾1」被画上去 | 提示词里的结构被当成文字 | 用返修话术 ① |",
+      "| 文字糊成一团 | 版式太密 | 换一个版面重跑，或减少一位嘉宾信息量 |",
+      "",
+      "## 兜底",
+      "",
+      "如果文字怎么修都不对，用 `python scripts/render-poster.py build/spec.json --out build/poster.png` 出文字层，",
+      "把 AI 图里的插画抠出来贴上去 —— 文字零错字，插画保留手绘质感。",
+      "",
+      `> 版式：${LAYOUT_DEFS[resolveLayout(spec)].label} ｜ 画布：${spec.canvas} ｜ 主色锁 #B1FA63 / #242021 / #F6F6F1`,
+    ].join("\n"),
+    "utf8",
+  );
+
+  await writeFile(
+    path.join(out, "05_质检卡.md"),
+    [
+      `# ${spec.event_name} · 质检卡`,
+      "",
+      "| 闸门 | 检查项 | 通过标准 | ✔ |",
+      "| --- | --- | --- | --- |",
+      `| G1 | 活动名 | 逐字等于「${spec.event_name}」 | ☐ |`,
+      `| G1 | 主题行 | 逐字等于「${spec.kicker}」，× 是乘号 | ☐ |`,
+      `| G1 | 时间 | 逐字等于「${spec.date_time}」 | ☐ |`,
+      `| G1 | 地点 | 逐字等于「${spec.location}」 | ☐ |`,
+      `| G1 | 嘉宾 | ${spec.guests.length} 位，姓名与话题逐字一致 | ☐ |`,
+      `| G1 | 福利 | 逐字等于「${spec.perks_title} —— ${spec.perks_text}」 | ☐ |`,
+      `| G1 | Slogan | 逐字等于「${spec.slogan}」 | ☐ |`,
+      "| G2 | 三色占比 | 奶油白 65–75% / 墨色 8–12% / 荧光绿 8–12% | ☐ |",
+      "| G2 | 无外来色 | 无橙红；点缀色 ≤6% 且只有一种 | ☐ |",
+      "| G3 | 层级 | 缩到手机 1/3，第一眼是活动名 | ☐ |",
+      "| G3 | 留白 | 有大留白，元素不互相压字 | ☐ |",
+      "| G4 | 字体 | 无衬线、同族、层级清晰 | ☐ |",
+      "| G5 | 图形语言 | 直角块、粗描边、手绘感、无渐变/3D | ☐ |",
+      "| G6 | Logo | 未变形、版本正确、未重绘 | ☐ |",
+      "",
+      "出图后也可以跑一次配色量测：",
+      "",
+      "```bash",
+      `python scripts/check-palette.py <成图.png> --debug`,
+      "```",
+    ].join("\n"),
+    "utf8",
+  );
+
+  return out;
+}
+
 /* ────────────────────────────── CLI ────────────────────────────── */
 
 function parseArgs(argv) {
-  const opts = { spec: null, out: "build/prompt.md", checkOnly: false, emitSpec: null, compact: null, quiet: false };
+  const opts = { spec: null, out: "build/prompt.md", checkOnly: false, emitSpec: null, compact: null, image2Pack: null, quiet: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--out" || a === "-o") opts.out = argv[++i];
     else if (a === "--check-only") opts.checkOnly = true;
     else if (a === "--emit-spec") opts.emitSpec = argv[++i];
     else if (a === "--compact") opts.compact = argv[++i];
+    else if (a === "--image2-pack") opts.image2Pack = argv[++i];
     else if (a === "--quiet") opts.quiet = true;
     else if (a === "--help" || a === "-h") opts.help = true;
     else if (a.startsWith("-")) throw new Error(`未知参数：${a}`);
@@ -744,6 +908,12 @@ async function main() {
   await writeFile(outPath, rendered, "utf8");
 
   console.log(`✅ 提示词包已生成：${path.relative(process.cwd(), outPath)}`);
+
+  if (opts.image2Pack) {
+    const packDir = await writeImage2Pack(opts.image2Pack, { rendered, spec });
+    console.log(`✅ Image 2 投喂包：${path.relative(process.cwd(), packDir)}/`);
+    console.log("   含：01_参考图 / 02_Logo / 03_整版提示词 / 04_返修话术 / 05_质检卡 / 00_怎么用");
+  }
 
   if (opts.compact) {
     const cp = path.resolve(opts.compact);
