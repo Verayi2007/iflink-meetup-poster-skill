@@ -454,15 +454,82 @@ function avatarStyle(spec) {
   return `${base}。各人头像特征：${detail}`;
 }
 
+/* ────────────────────────────── 短指令版提示词 ────────────────────────────── */
+
+/**
+ * 有些模型（qwen-image / 即梦 / 豆包）吃不下 3000+ 字的规范文档，
+ * 会把"40px""5.3%"这类参数当正文画进画面。给它们一份 600–900 字的内容型短指令。
+ */
+function compactPrompt(spec) {
+  const g = spec.guests
+    .map(
+      (guest, i) =>
+        `· 嘉宾${i + 1}：${guest.name}（${GENDER_LABEL[guest.gender]}）—— ${guest.topic}`,
+    )
+    .join("\n");
+
+  const lines = [
+    "以这张海报的版式和画风为模板，重新做一张全新的活动海报：把画面里所有文字和人物信息全部替换成下面的新内容，版式结构、色块位置、手绘风格保持不变。",
+    "",
+    "【必须逐字出现的文字】",
+    `· 左上角：${spec.event_name.includes("IF.") ? "IF.Link" : spec.event_name}`,
+    `· 右上角一行小字：${spec.slogan}`,
+    `· 绿色色块上的大标题：${spec.event_name}`,
+    `· 黑色色块上的副标题：${spec.kicker}`,
+  ];
+  if (isStr(spec.one_liner)) lines.push(`· 副标题下方一行小字：${spec.one_liner}`);
+  lines.push(
+    `· 时间：${spec.date_time}`,
+    `· 地点：${spec.location}`,
+    `· 栏目标题：${spec.guest_section_title}`,
+    g,
+    `· 左下角：${spec.perks_title} —— ${spec.perks_text}`,
+  );
+
+  const sceneText = {
+    "sit-around": "右侧手绘插画换成几个人围坐交流",
+    whiteboard: "右侧手绘插画换成一个人在白板前讲解、其余人坐着听",
+    collab: "右侧手绘插画换成几个人围在桌前协作",
+    none: "右侧留白，只放两三个手绘小涂鸦",
+    custom: `右侧手绘插画换成：${spec.illustration.description}`,
+  };
+  lines.push("", "【画面要求】", `${sceneText[spec.illustration.scene] ?? sceneText["sit-around"]}。`);
+
+  if (spec.decor.preset === "none") {
+    lines.push("右下角不要画任何角色或吉祥物，保持留白。");
+  } else {
+    const guest = spec.guests.find((x) => x.name === spec.decor.from_guest);
+    const src =
+      spec.decor.preset === "custom"
+        ? spec.decor.description
+        : `取自嘉宾「${spec.decor.from_guest}」的话题「${guest?.topic ?? ""}」的意象`;
+    const accent = isStr(spec.decor.accent_color) ? `，点缀色 ${spec.decor.accent_color}` : "";
+    lines.push(`右下角画一个小角色：${src}${accent}；${isStr(spec.decor.props) ? `道具：${spec.decor.props}。` : ""}`);
+    lines.push("注意：这个角色只属于本期内容，不要画成固定的品牌吉祥物。");
+  }
+
+  lines.push(
+    `配色只用：奶油白底 #F6F6F1、黑 #242021、荧光绿 #B1FA63${isStr(spec.decor.accent_color) ? `、点缀色 ${spec.decor.accent_color}` : ""}。`,
+    "",
+    "【严格禁止】",
+    "不要出现任何尺寸数字、百分比、色值、边框线、十字对齐线、说明性小字；",
+    "不要把上面这些指令或参数当成画面文字画出来；",
+    "删除参考图里原有的全部文字与旧角色，一个都不要保留。",
+  );
+
+  return lines.join("\n");
+}
+
 /* ────────────────────────────── CLI ────────────────────────────── */
 
 function parseArgs(argv) {
-  const opts = { spec: null, out: "build/prompt.md", checkOnly: false, emitSpec: null, quiet: false };
+  const opts = { spec: null, out: "build/prompt.md", checkOnly: false, emitSpec: null, compact: null, quiet: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--out" || a === "-o") opts.out = argv[++i];
     else if (a === "--check-only") opts.checkOnly = true;
     else if (a === "--emit-spec") opts.emitSpec = argv[++i];
+    else if (a === "--compact") opts.compact = argv[++i];
     else if (a === "--quiet") opts.quiet = true;
     else if (a === "--help" || a === "-h") opts.help = true;
     else if (a.startsWith("-")) throw new Error(`未知参数：${a}`);
@@ -553,6 +620,15 @@ async function main() {
   await writeFile(outPath, rendered, "utf8");
 
   console.log(`✅ 提示词包已生成：${path.relative(process.cwd(), outPath)}`);
+
+  if (opts.compact) {
+    const cp = path.resolve(opts.compact);
+    await mkdir(path.dirname(cp), { recursive: true });
+    const text = compactPrompt(spec);
+    await writeFile(cp, text, "utf8");
+    console.log(`✅ 短指令版已生成：${path.relative(process.cwd(), cp)}（${text.length} 字，给吃不下长规范的模型用）`);
+  }
+
   if (!opts.quiet) {
     console.log(`   下一步：上传 assets/reference/final-poster.png 与 ${spec.logo_variant === "dark" ? "IF.Link_深色背景.svg" : "IF.Link_浅色背景.svg"}`);
     console.log("   然后粘贴「① 整版提示词」，成图后跑：python scripts/check-palette.py <成图.png>");

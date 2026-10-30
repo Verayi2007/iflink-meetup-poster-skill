@@ -281,6 +281,10 @@ iflink-meetup-poster/
 | **A 手工**（默认，任何环境可用） | 人 | 把 `build/prompt.md` 的①整版提示词 + 参考图 + Logo 贴进 ChatGPT Image 2 |
 | **B 宿主有图像工具** | agent | 运行环境暴露了图像生成工具时，直接调用（提示词取①段、参考图传 `final-poster.png`），出图后自动跑 `check-palette.py` |
 | **C API 自动化** | 脚本 | 自己的 key：`node scripts/render-images.mjs build/prompt.md --ref assets/reference/final-poster.png --execute`（不带 `--execute` 只打印请求，不花钱） |
+| **D 本机百炼**（已可用） | `bl` CLI | 本机已配置 DashScope key：`bl image edit --image assets/reference/final-poster.png --prompt "$(cat build/prompt-compact.txt)" --size "1024*1536" --no-prompt-extend --out-dir build/out` |
 
-选择与注意事项见 **[references/06-image-model-adapter.md](references/06-image-model-adapter.md)**。
+生成短指令版（吃不下长规范的模型必须用它，否则会把 `40px`/`5.3%` 画进画面）：
+`node scripts/build-prompt.mjs build/spec.json --out build/prompt.md --compact build/prompt-compact.txt`
+
+实测结论、四轮对比与混合打法见 **[references/06-image-model-adapter.md](references/06-image-model-adapter.md)**。
 无论走哪条通道，**G1 文字闸门都还是要人眼过一遍** —— 生成模型至今不稳定地写对中文。
