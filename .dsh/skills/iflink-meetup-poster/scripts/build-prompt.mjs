@@ -647,49 +647,42 @@ function compactPrompt(spec) {
 /* ────────────────────────────── 自然语言版提示词（默认投喂） ────────────────────────────── */
 
 /**
- * 规格版（坐标/百分比）适合"精确复刻"和"渲染对位"，但直接喂给生图模型会让它画得像模板。
- * 自然版用设计师口述的语气：只锁"必须出现的文字 + 几条硬约束"，其余留给模型。
+ * 自然版：只学参考图的**风格**，不规定版面结构，配图从嘉宾内容里长出来。
+ * 规格版（坐标/百分比）留给"精确复刻"和"渲染对位"。
  */
 function briefPrompt(spec) {
-  const layoutHint = {
-    classic: "左边文字、右边画，这是最稳的排法",
-    stack: "上半张画、下半张字，嘉宾排成两列",
-    band: "中间横着一条画，上面标题、下面信息",
-    hero: "整张铺满插画，文字压在图上",
-    grid: "嘉宾做成一格一格的小卡片",
-  }[resolveLayout(spec)];
+  const topicHints = spec.guests
+    .map((g) => `「${g.topic}」`)
+    .join("、");
 
-  const sceneHint = {
-    "sit-around": "画几个年轻人围坐聊天",
-    whiteboard: "画一个人在白板前比划、其他人围着听",
-    collab: "画几个人凑在一张桌子前一起看屏幕",
-    none: "这期不画大插画，右侧留白就好",
-    custom: `画这个场景：${spec.illustration.description}`,
-  }[spec.illustration.scene];
-
-  let decorHint = "";
-  if (spec.decor.preset !== "none") {
-    const guest = spec.guests.find((g) => g.name === spec.decor.from_guest);
-    const what =
-      spec.decor.preset === "custom"
-        ? spec.decor.description
-        : `一个呼应「${guest?.name ?? ""}」话题「${guest?.topic ?? ""}」的小东西（${spec.decor.description || "自己挑一个最具体的意象"}）`;
-    decorHint =
-      `\n· 右下角可以放个小角色：${what}` +
-      (isStr(spec.decor.accent_color) ? `，用点缀色 ${spec.decor.accent_color}，全图只此一处异色` : "");
-  }
-
-  const guestLines = spec.guests.map((g) => `  ${g.name}｜${g.topic}`).join("\n");
+  // 配图取材：优先用几位嘉宾的话题本身，而不是固定场景
+  const sceneWanted =
+    spec.illustration.scene === "custom"
+      ? `这期想看到这样的画面：${spec.illustration.description}。`
+      : spec.illustration.scene === "none"
+        ? "这期画面可以更克制，不一定要画大场景，留白和色块本身就能撑住。"
+        : {
+            "sit-around": "画成一圈人在一起交流的样子。",
+            whiteboard: "画成有人站着讲、其他人围着听的样子。",
+            collab: "画成几个人凑在一起看屏幕/摆弄东西的样子。",
+          }[spec.illustration.scene] ?? "";
 
   const lines = [
     "帮我做一张活动海报，竖版 2:3。",
     "",
-    "气质：手绘的、社区气的，像学生社团自己做的那种，不是商业模板。奶油白纸底，黑色粗字，荧光绿用来压重点；",
-    "要有手写和涂鸦的痕迹，脏一点、野一点没关系，别干净得像 PPT。",
-    "附的参考图只借它的气质和笔触，不要照抄它的分区。",
+    "【风格】学这张参考图的视觉语言，但不要照搬它的排版",
+    "· 干净、利落的手绘风：平涂色块，没有渐变、没有光影、没有立体感。",
+    "· 4–5px 黑色粗描边，线条收口圆润、略有抖动，像马克笔或丝网印刷。",
+    "· 奶油白 #F6F6F1 当纸底，黑 #242021 写字，荧光绿 #B1FA63 只给重点块面上色。",
+    "· 留白要敢留，一张图别塞满；整体是清爽的，不是杂乱涂鸦。",
+    "· 有手工感，但一定干净 —— 这是这套视觉最要紧的地方。",
     "",
-    "必须出现的文字（逐字，别改、别无中生有）：",
-    `· 页眉左：IF.Link　　页眉右：${spec.slogan}`,
+    "【版面】完全自由",
+    "左文右图、右文左图、上图下文、双栏、网格、标题压在图中间……都行，反过来也可以。",
+    "唯一的要求是信息重心不倒：活动名最醒目，其余按「时间地点 > 嘉宾 > 福利」的轻重往下走，留白给足。",
+    "",
+    "【必须出现的文字】（逐字，不许改写、不许自己加）",
+    `· 页眉一侧：IF.Link　　另一侧：${spec.slogan}`,
     `· 大标题：${spec.event_name}`,
     `· 副标题：${spec.kicker}`,
   ];
@@ -698,23 +691,43 @@ function briefPrompt(spec) {
     `· 时间：${spec.date_time}`,
     `· 地点：${spec.location}`,
     `· 嘉宾 ${spec.guests.length} 位（姓名 + 各自的话题，一条不落）：`,
-    guestLines,
+    ...spec.guests.map((g) => `  ${g.name}｜${g.topic}`),
     `· 福利：${spec.perks_text}`,
     "",
-    spec.layout === "auto"
-      ? "版式：你自己挑一个最合适的，别做成四平八稳的模板。硬要求只有一个 —— 活动名最醒目，信息按「活动名 > 时间地点 > 嘉宾 > 福利」的轻重走，留白别抠门。"
-      : `版式：${layoutHint}，具体怎么摆你定；硬要求是活动名最醒目、信息按「活动名 > 时间地点 > 嘉宾 > 福利」的轻重走，留白别抠门。`,
-    `插画：${sceneHint}，人物保持线稿，别画写实脸。${decorHint.replace(/\n· /, "另外，")}`,
-    "",
-    "几条硬要求：",
-    "· 颜色只用：奶油白 #F6F6F1、黑 #242021、荧光绿 #B1FA63" +
-      (isStr(spec.decor.accent_color) && spec.decor.preset !== "none" ? `，外加那一个点缀色 ${spec.decor.accent_color}` : ""),
-    "  —— 不要橙红（#FE7733 尤其不要），不要渐变、不要 3D、不要投影光效。",
-    "· Logo 和 slogan 是现成的图形，别重画、别改字重字距；slogan 里 IFs 是复数、Dots 首字母大写。",
-    "· 除了上面列的文字，一个字都别加：不要主办方、不要二维码、不要报名链接、不要联系方式。",
-    "",
-    "先给我 2–3 个不同版式的方案，画风保持一致，我挑一个。",
+    "【画什么】从这期嘉宾聊的内容里找意象，别套固定模板",
+    `这几位分别讲的是：${topicHints}。插画里的元素、道具、场景就从这些内容里长出来，让人一看就知道是这几场分享。`,
+    sceneWanted,
+    "人物保持线稿，不要写实脸、不要照片质感。",
   );
+
+  if (spec.decor.preset !== "none") {
+    const guest = spec.guests.find((g) => g.name === spec.decor.from_guest);
+    const what =
+      spec.decor.preset === "custom"
+        ? spec.decor.description
+        : `一个呼应「${guest?.name ?? ""}」那条「${guest?.topic ?? ""}」的小东西（${spec.decor.description || "自己挑一个最具体的意象"}）`;
+    lines.push(
+      `如果画面需要一点温度，可以放一个小角色：${what}。位置、大小你定` +
+        (isStr(spec.decor.accent_color) ? `，但只能用这一个点缀色 ${spec.decor.accent_color}，全图就这一处异色` : ""),
+      "它必须是从内容里长出来的，不要做成固定的品牌吉祥物。",
+    );
+  } else {
+    lines.push("不需要任何吉祥物或固定小角色。");
+  }
+
+  lines.push(
+    "",
+    "【硬要求】",
+    "· 颜色只用：奶油白 #F6F6F1、黑 #242021、荧光绿 #B1FA63" +
+      (isStr(spec.decor.accent_color) && spec.decor.preset !== "none" ? `，外加上面那一个点缀色 ${spec.decor.accent_color}` : ""),
+    "  —— 不要橙红（#FE7733 尤其不要），不要渐变、不要 3D、不要投影光效、不要第二种异色。",
+    "· Logo 和 slogan 是现成图形，别重画、别改字重字距；slogan 里 IFs 是复数、Dots 首字母大写。",
+    "· 除了上面列的文字，一个字都别加：不要主办方、不要二维码、不要报名链接、不要联系方式。",
+    "· 不要把参考图里的文字、角色或分区带过来。",
+    "",
+    "先给我 2–3 个不同版式的方案（左右可以反过来），画风保持一致，我挑一个。",
+  );
+
   return lines.join("\n");
 }
 
