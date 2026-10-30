@@ -30,6 +30,8 @@ bl image edit \
 python scripts/check-palette.py build/out/meetup-20261121.png --debug
 ```
 
+> 注：下文 `--compact` 是 v1.3 时代的产物，现已并入整合提示词的「自然版」段，**不再是独立文件**。保留记录备忘。
+
 **生成短指令版**（长规范会被模型当正文画进画面）：
 
 ```bash

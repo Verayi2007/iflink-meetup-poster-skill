@@ -311,18 +311,18 @@ iflink-meetup-poster/
 
 ## 10. 谁来真正出图（重要）
 
-**提示词分两档**：自然版（口述型，只锁文字与硬约束，默认）／规格版（坐标型，用于精确复刻）。**这个 Skill 不会自己调用 image2。** 它产出的是提示词包（含参考图与 Logo 的投喂顺序）；真正把图生出来的是：
+**交付物是一份整合提示词包**（1 个 md + 3 张图），排版交给模型自己决定。**这个 Skill 不会自己调用 image2。** 它产出的是提示词包（含参考图与 Logo 的投喂顺序）；真正把图生出来的是：
 
 | 通道 | 谁执行 | 需要什么 |
 | --- | --- | --- |
-| **A 手工**（默认，任何环境可用） | 人 | 一键出投喂包：`node scripts/build-prompt.mjs build/spec.json --image2-pack build/pack`。包里有**两版提示词**：`05_自然版`（默认，像设计师口述，版式交给模型，出图更活）与 `05b_规格版`（坐标写死，只在要精确复刻时用）。其余：参考图、Logo、Slogan 图与文案、返修话术、质检卡 |
+| **A 手工**（默认，任何环境可用） | 人 | 一键出包：`node scripts/build-prompt.mjs build/spec.json --pack build/pack` → `build/pack/<活动名>·提示词包.md` + 三张图。md 里是：上传清单、**唯一一段可粘贴提示词**、出图后的两条命令、返修话术、质检卡 |
 | **B 宿主有图像工具** | agent | 运行环境暴露了图像生成工具时，直接调用（提示词取①段、参考图传 `final-poster.png`），出图后自动跑 `check-palette.py` |
 | **C API 自动化** | 脚本 | 自己的 key：`node scripts/render-images.mjs build/prompt.md --ref assets/reference/final-poster.png --execute`（不带 `--execute` 只打印请求，不花钱） |
 | **D 本机百炼**（已可用） | `bl` CLI | 本机已配置 DashScope key：`bl image edit --image assets/reference/final-poster.png --prompt "$(cat build/prompt-compact.txt)" --size "1024*1536" --no-prompt-extend --out-dir build/out` |
 | **R 确定性渲染**（推荐做终稿） | `render-poster.py` | `python scripts/render-poster.py build/spec.json --out build/poster.png --illustration build/illust.png`：文字由代码绘制，**零错字、颜色版式精确**；插画位贴 AI 生成的素材 |
 
 生成短指令版（吃不下长规范的模型必须用它，否则会把 `40px`/`5.3%` 画进画面）：
-`node scripts/build-prompt.mjs build/spec.json --out build/prompt.md --compact build/prompt-compact.txt`
+`node scripts/build-prompt.mjs build/spec.json --out build/prompt.md`（规格版，仅供渲染器对位，不外发）
 
 实测结论、四轮对比与混合打法见 **[references/06-image-model-adapter.md](references/06-image-model-adapter.md)**。
 无论走哪条通道，**G1 文字闸门都还是要人眼过一遍** —— 生成模型至今不稳定地写对中文。

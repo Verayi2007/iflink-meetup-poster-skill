@@ -51,8 +51,8 @@ agent 把它结构化成 `spec.json` → 回读确认 → 出提示词。
 ```bash
 cp templates/intake-form.md build/intake.md          # 用中文填
 node scripts/new-spec.mjs --from build/intake.md --out build/spec.json
-node scripts/build-prompt.mjs build/spec.json --out build/prompt.md
-python scripts/check-palette.py build/poster.png --debug
+node scripts/build-prompt.mjs build/spec.json --pack build/pack   # 出整合包（md + 三张图）
+# → build/pack/<活动名>·提示词包.md 里：上传清单 + 一段提示词 + 出图后两条命令
 ```
 
 **C · 交互 / 骨架 / 直接写 JSON**
@@ -77,13 +77,16 @@ iflink-meetup-poster/
 │   ├── 02-input-schema.md         入参字段、3 种录入方式、校验码表
 │   ├── 03-prompt-playbook.md      三层提示词结构、投喂顺序、反模式
 │   ├── 04-qc-rules.md             六道闸门判定标准与纠错机制
-│   └── 05-exception-playbook.md   症状→根因→修法→兜底
+│   ├── 05-exception-playbook.md   症状→根因→修法→兜底
+│   └── 06-image-model-adapter.md  谁真正出图：手工/宿主/API/百炼/渲染 五通道
 ├── assets/
 │   ├── prompt-template.md         提示词母版（纯占位符，无活动内容）
-│   └── reference/
+│   └── reference/                 品牌资产，见其 README
 │       ├── final-poster.png       定稿基准（1024×1536）
-│       ├── IF.Link_浅色背景.svg    浅底用（黑字）
-│       └── IF.Link_深色背景.svg    深底用（白字）
+│       ├── IF.Link_浅色背景.svg/.png  浅底用 Logo（黑字）
+│       ├── IF.Link_深色背景.svg/.png  深底用 Logo（白字）
+│       ├── IF.Link-slogan.png     规范版 slogan（大写 Dots）
+│       └── IF.Link-slogan-legacy-lowercase.png  ⚠️ 旧图，勿用
 ├── templates/
 │   ├── intake-form.md             中文填表
 │   ├── spec.minimal.json          空白骨架
@@ -91,9 +94,12 @@ iflink-meetup-poster/
 │   └── sample-b-product.json      样例 B：另一场活动
 └── scripts/
     ├── new-spec.mjs               人话/填表 → spec.json
-    ├── build-prompt.mjs           校验 + 提示词装配
-    ├── check-palette.py           成图配色闸门（主色锁 + 点缀色）
-    └── render-images.mjs          可选：接图像 API（默认 dry-run）
+    ├── build-prompt.mjs           校验 + 出「整合提示词包」（--pack）
+    ├── brand-stamp.py             出图后贴官方 Logo / slogan（必跑）
+    ├── make-slogan.py             生成规范版 slogan 图
+    ├── check-palette.py           配色闸门（主色锁 + 点缀色）
+    ├── render-poster.py           确定性渲染（零错字，备选通道）
+    └── render-images.mjs          可选：接图像 API（默认 dry-run，不花钱）
 ```
 
 ## 已验证
@@ -107,7 +113,9 @@ iflink-meetup-poster/
 | 负例校验 | 8 项 E* 全部拦截（字母 x、缺时刻、色彩锁被改、slogan 被改、出现"联合主办"…） |
 | 配色闸门·正例 | 定稿 PASS：奶油白 66.3% / 墨色 11.5% / 荧光绿 9.5% / 点缀色 3.1%（1 种，暖黄）/ 橙红 0% |
 | 配色闸门·负例 | 绿替换成参考图橙红 → FAIL（橙红 9.9%、荧光绿 0%、单色点缀 9.7% 抢戏） |
-| 出图通道 | 手工（默认）/ 宿主图像工具 / API / 本机百炼 `bl`（已实测 4 轮，见 references/06） |
+| 出图通道 | 手工（默认）/ 宿主图像工具 / API / 本机百炼 `bl` / 确定性渲染（见 references/06） |
+| 交付物 | 一份整合提示词包（1 md + 3 图），无排法预设、无多份变体 |
+| 贴牌 | brand-stamp.py 实测：页眉残留清除、Logo 132×33 @54,40、slogan 363×23 右对齐 |
 | 短指令版 | `--compact` 产出 639 字，已用于 qwen-image-2.0 实跑 |
 
 ## 版本

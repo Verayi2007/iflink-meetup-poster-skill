@@ -67,7 +67,7 @@
 | `decor.from_guest` | 空 | `preset: topic` 时必填（E064），填嘉宾姓名 |
 | `decor.description` | 空 | `preset: custom` 时必填（E063）；`topic` 时可作为补充提示 |
 | `decor.accent_color` | 空 | 全图唯一允许的非品牌色，HEX；面积 ≤6% |
-| `layout` | `auto` | 版面：`classic` 左文右图 / `stack` 上图下文 / `band` 中间横带 / `hero` 大图主角 / `grid` 网格卡片 / `auto` 按人数自动 |
+| `layout` | `auto` | **只影响代码渲染器**（`render-poster.py`），提示词不再指定排版。可选 classic/stack/band/hero/grid/auto |
 | `layout_note` | 空 | 版面补充一句话（≤80 字），如"插画占满上半版" |
 | `decor.props` | 空 | 道具描述，如「白色纸杯，杯身竖排 IF.Link」 |
 | `slogan` | `Link the IFs, Connect the Dots` | **锁定**，改动即 E031（除非 `allow_slogan_override: true`） |

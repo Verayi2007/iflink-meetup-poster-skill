@@ -3,7 +3,7 @@
 - 活动：{{EVENT_NAME}} ｜ {{KICKER}}
 - 时间：{{DATE_TIME}}
 - 地点：{{LOCATION}}
-- 规格：{{CANVAS}}（2:3）｜变体：{{VARIANT_LABEL}}｜版式：{{LAYOUT_LABEL}}
+- 规格：{{CANVAS}}（2:3）｜配色：{{VARIANT_LABEL}}
 - 参考图：`assets/reference/final-poster.png`（只借它的**画风与气质**，不要照搬它的分区）
 - Logo：`{{LOGO_FILE}}`（定制图形，禁止重绘/改字重/改字距/改色）
 - 生成于：{{GENERATED_AT}}
