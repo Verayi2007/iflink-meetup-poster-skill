@@ -52,7 +52,7 @@ agent 把它结构化成 `spec.json` → 回读确认 → 出提示词。
 cp templates/intake-form.md build/intake.md          # 用中文填
 node scripts/new-spec.mjs --from build/intake.md --out build/spec.json
 node scripts/build-prompt.mjs build/spec.json --pack build/pack   # 出整合包（md + 三张图）
-# → build/pack/<活动名>·提示词包.md 里：上传清单 + 一段提示词 + 出图后两条命令
+# → build/pack/<活动名>·提示词包.html（双击浏览器打开，带"复制提示词"按钮）
 ```
 
 **C · 交互 / 骨架 / 直接写 JSON**
@@ -120,10 +120,11 @@ iflink-meetup-poster/
 
 ## 版本
 
-`v1.8.0` · 主色锁 `#B1FA63` / `#242021` · 画布 1024×1536（2:3）
+`v1.8.1` · 主色锁 `#B1FA63` / `#242021` · 画布 1024×1536（2:3）
 
 - v1.0.0 首版（原作复刻）
 - v1.1.0 内容与风格分离：移除模板中的活动硬编码；新增 `new-spec.mjs`（交互 / 填表 / 骨架）、插画场景预设、按嘉宾数自适应版式、`one_liner` 可空
+- v1.8.1 提示词包改为自包含 HTML：Windows 无 `.md` 关联导致双击只能开 VS Code，改 HTML 后双击即浏览器打开，并在页面内提供一键复制提示词
 - v1.8.0 产物收敛：投喂包合并为**一份整合提示词包**（1 个 md + 3 张图），取消 A/B/C 排法变体与规格版外发；排版完全交由 image2 按内容自行决定
 - v1.7.1 Slogan 定案：以大写 `Dots`、无句号为准；新增 `make-slogan.py` 生成规范版 slogan 图，品牌库旧图（小写 `dots.`）改名为 legacy 并停用；`brand-stamp.py` 默认贴规范版图
 - v1.7.0 Logo 零误差：新增 `brand-stamp.py`（出图后盖掉模型画的 Logo、贴官方 PNG + idiom slogan 文字绘制）；自然版版面段改为「强制 3 种不同排法」并加"灵活排版"；投喂包把贴牌列为出图后第一步

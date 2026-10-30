@@ -801,84 +801,148 @@ async function writePromptPack(dir, { spec }) {
     /* 没有就跳过 */
   }
 
+  const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const prompt = briefPrompt(spec);
+  const repairs = repairScripts(spec);
+
   const uploadRows = [
-    "| 文件 | 作用 |",
-    "| --- | --- |",
-    "| `01_参考图.png` | 只借它的**画风与质感**，不借它的排版 |",
-    "| `02_Logo.svg` | 官方 Logo，禁止重绘 |",
+    ["01_参考图.png", "只借它的画风与质感，不借它的排版"],
+    ["02_Logo.svg", "官方 Logo，禁止重绘"],
   ];
-  if (hasSlogan) uploadRows.push("| `03_Slogan.png` | slogan 标准图，禁止重绘 |");
+  if (hasSlogan) uploadRows.push(["03_Slogan.png", "slogan 标准图，禁止重绘"]);
 
-  const md = `# ${spec.event_name} · 海报提示词包
+  const accent =
+    isStr(spec.decor.accent_color) && spec.decor.preset !== "none" ? spec.decor.accent_color : "";
 
-> 一份文件搞定：**上传图 → 粘贴一段话 → 出图后跑两条命令**。
-> 排版没有预设，由模型根据内容自己定。
+  const qcRows = [
+    ["G1", "活动名", `逐字等于「${spec.event_name}」`],
+    ["G1", "主题行", `逐字等于「${spec.kicker}」，× 是乘号`],
+    ["G1", "时间", `逐字等于「${spec.date_time}」`],
+    ["G1", "地点", `逐字等于「${spec.location}」`],
+    ["G1", "嘉宾", `${spec.guests.length} 位，姓名与话题逐字一致`],
+    ["G1", "福利", `逐字等于「${spec.perks_text}」`],
+    ["G1", "Slogan", `「${spec.slogan}」`],
+    ["G2", "三色占比", "奶油白 65–75% / 墨色 8–12% / 荧光绿 8–12%"],
+    ["G2", "异色", "无橙红；点缀色 ≤6% 且只有一种"],
+    ["G3", "层级", "缩到手机 1/3，第一眼是活动名"],
+    ["G4", "字体", "无衬线、同族、层级清晰"],
+    ["G5", "图形语言", "直角块、粗描边、手绘感、无渐变/3D"],
+    ["G6", "Logo", "未变形、版本正确、已贴牌"],
+  ];
 
----
+  const html = `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>${esc(spec.event_name)} · 海报提示词包</title>
+<style>
+  :root{--cream:#F6F6F1;--ink:#242021;--green:#B1FA63;--muted:#6b675f;--line:#DCEFC0}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--cream);color:var(--ink);
+       font:16px/1.75 "Microsoft YaHei","PingFang SC",system-ui,sans-serif}
+  .wrap{max-width:900px;margin:0 auto;padding:56px 32px 96px}
+  header{border-bottom:3px solid var(--ink);padding-bottom:20px;margin-bottom:36px}
+  h1{font-size:34px;line-height:1.25;margin:0 0 10px;font-weight:900;letter-spacing:-.01em}
+  .sub{color:var(--muted);font-size:15px}
+  .tag{display:inline-block;background:var(--green);color:var(--ink);
+       padding:2px 10px;border-radius:6px;font-weight:800;font-size:14px;margin-right:8px}
+  h2{font-size:21px;margin:44px 0 14px;font-weight:900;
+     border-left:8px solid var(--green);padding-left:12px}
+  h3{font-size:16px;margin:24px 0 8px;font-weight:800}
+  table{border-collapse:collapse;width:100%;margin:12px 0;font-size:15px}
+  th,td{border-bottom:1px solid var(--line);padding:9px 10px;text-align:left;vertical-align:top}
+  th{font-weight:800;background:#efefe8}
+  code{background:#eceae3;padding:1px 6px;border-radius:4px;font-size:14px}
+  pre{background:#fff;border:2px solid var(--ink);border-radius:10px;padding:18px;
+      overflow:auto;white-space:pre-wrap;font-size:14.5px;line-height:1.8;
+      font-family:"Microsoft YaHei",Consolas,monospace}
+  .bar{position:sticky;top:0;background:var(--cream);padding:14px 0;display:flex;
+       gap:12px;align-items:center;border-bottom:1px solid var(--line);z-index:9}
+  button{background:var(--green);color:var(--ink);border:2px solid var(--ink);border-radius:8px;
+         padding:9px 18px;font-weight:900;font-size:15px;cursor:pointer;font-family:inherit}
+  button:active{transform:translateY(1px)}
+  .tip{color:var(--muted);font-size:14px}
+  ol,ul{padding-left:22px}
+  li{margin:6px 0}
+  .note{background:#fff;border-left:6px solid var(--line);padding:12px 16px;border-radius:6px;
+        color:#4a463f;font-size:15px;margin:14px 0}
+  footer{margin-top:56px;padding-top:18px;border-top:1px solid var(--line);
+         color:var(--muted);font-size:13px}
+  @media print{.bar{display:none} body{background:#fff}}
+</style>
+</head>
+<body>
+<div class="wrap">
 
-## 一、先上传
+<header>
+  <div style="margin-bottom:10px"><span class="tag">提示词包</span><span class="sub">一份文件搞定：上传图 → 粘贴提示词 → 两条命令收尾</span></div>
+  <h1>${esc(spec.event_name)}</h1>
+  <div class="sub">${esc(spec.kicker)}　·　${esc(spec.date_time)}　·　${esc(spec.location)}</div>
+</header>
 
-${uploadRows.join("\n")}
+<h2>一、先上传</h2>
+<table>
+  <tr><th style="width:190px">文件</th><th>作用</th></tr>
+  ${uploadRows.map(([n, d]) => `<tr><td><code>${n}</code></td><td>${d}</td></tr>`).join("\n  ")}
+</table>
+<div class="note">传完不用补任何说明 —— 品牌资产条款（Logo / slogan 禁止重绘、slogan 逐字大写）已经写进下面的提示词里了。</div>
 
-传完不用补任何说明，提示词里已经写了品牌资产条款。
+<h2>二、复制这段提示词</h2>
+<div class="bar">
+  <button onclick="copyPrompt()">复制提示词</button>
+  <span class="tip" id="tip">点一下即可复制，粘进 ChatGPT 发送</span>
+</div>
+<pre id="prompt">${esc(prompt)}</pre>
 
----
-
-## 二、把下面整段粘进去（唯一要复制的东西）
-
-\`\`\`text
-${briefPrompt(spec)}
-\`\`\`
-
----
-
-## 三、出图之后（两条命令）
-
-\`\`\`bash
-# 1) 贴正 Logo 与 slogan（模型画不准，盖掉重贴）
-python scripts/brand-stamp.py <成图.png> --out <成图-branded.png>
+<h2>三、出图之后（两条命令）</h2>
+<pre># 1) 贴正 Logo 与 slogan（模型画不准，盖掉重贴）
+python scripts/brand-stamp.py &lt;成图.png&gt; --out &lt;成图-branded.png&gt;
 
 # 2) 验色：三主色占比、点缀色、有没有橙红
-python scripts/check-palette.py <成图-branded.png> --debug
-\`\`\`
+python scripts/check-palette.py &lt;成图-branded.png&gt; --debug</pre>
 
----
+<h2>四、出问题时贴哪一条</h2>
+<div class="note">一次只修一处，修完再修下一处 —— 同时提多个修改点，模型会把别的地方一起改坏。</div>
+<pre>${esc(repairs).replace(/```text|```/g, "").trim()}</pre>
 
-## 四、出问题时贴哪一条（一次只修一处）
+<h2>五、验收清单</h2>
+<table>
+  <tr><th style="width:56px">闸门</th><th style="width:110px">检查项</th><th>通过标准</th><th style="width:44px">✔</th></tr>
+  ${qcRows.map(([g, k, v]) => `<tr><td>${g}</td><td>${k}</td><td>${esc(v)}</td><td style="text-align:center">☐</td></tr>`).join("\n  ")}
+</table>
 
-${repairScripts(spec)}
+<h2>附：本次规格</h2>
+<ul>
+  <li>画布：${spec.canvas}（2:3）｜配色：${spec.variant === "dark" ? "深色版（黑底白字）" : "浅色版（奶油白底）"}</li>
+  <li>主色锁：<code>#B1FA63</code> / <code>#242021</code> / <code>#F6F6F1</code>${accent ? `｜点缀色：<code>${accent}</code>` : ""}</li>
+  <li>排版：<strong>不预设</strong>，由模型按内容自行组织</li>
+</ul>
 
----
+<footer>IF.Link 品牌组 · 生成于 ${new Date().toISOString().slice(0, 10)} · 主色锁 #B1FA63 / #242021</footer>
+</div>
 
-## 五、验收清单
+<script>
+function copyPrompt(){
+  var t = document.getElementById('prompt').innerText;
+  var tip = document.getElementById('tip');
+  var done = function(){ tip.textContent = '已复制 ✓ 去 ChatGPT 粘贴'; setTimeout(function(){ tip.textContent='点一下即可复制，粘进 ChatGPT 发送'; }, 2600); };
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(t).then(done, fallback);
+  } else { fallback(); }
+  function fallback(){
+    var ta = document.createElement('textarea');
+    ta.value = t; ta.style.position='fixed'; ta.style.opacity='0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); done(); } catch(e){ tip.textContent='复制失败，请手动全选'; }
+    document.body.removeChild(ta);
+  }
+}
+</script>
+</body>
+</html>`;
 
-| 闸门 | 检查项 | 通过标准 | ✔ |
-| --- | --- | --- | --- |
-| G1 | 活动名 | 逐字等于「${spec.event_name}」 | ☐ |
-| G1 | 主题行 | 逐字等于「${spec.kicker}」，× 是乘号 | ☐ |
-| G1 | 时间 | 逐字等于「${spec.date_time}」 | ☐ |
-| G1 | 地点 | 逐字等于「${spec.location}」 | ☐ |
-| G1 | 嘉宾 | ${spec.guests.length} 位，姓名与话题逐字一致 | ☐ |
-| G1 | 福利 | 逐字等于「${spec.perks_text}」 | ☐ |
-| G1 | Slogan | 「${spec.slogan}」 | ☐ |
-| G2 | 三色占比 | 奶油白 65–75% / 墨色 8–12% / 荧光绿 8–12% | ☐ |
-| G2 | 异色 | 无橙红；点缀色 ≤6% 且只有一种 | ☐ |
-| G3 | 层级 | 缩到手机 1/3，第一眼是活动名 | ☐ |
-| G4 | 字体 | 无衬线、同族、层级清晰 | ☐ |
-| G5 | 图形语言 | 直角块、粗描边、手绘感、无渐变/3D | ☐ |
-| G6 | Logo | 未变形、版本正确、已贴牌 | ☐ |
-
----
-
-## 附：本次生成规格
-
-- 画布：${spec.canvas}（2:3）｜配色：${spec.variant === "dark" ? "深色版（黑底白字）" : "浅色版（奶油白底）"}
-- 主色锁：\`#B1FA63\` / \`#242021\` / \`#F6F6F1\`${isStr(spec.decor.accent_color) && spec.decor.preset !== "none" ? `｜点缀色：\`${spec.decor.accent_color}\`` : ""}
-- 排版：**不预设**，由模型按内容自行组织
-`;
-
-  const fileName = `${spec.event_name.replace(/[\\/:*?"<>|]/g, "-")}·提示词包.md`;
-  await writeFile(path.join(out, fileName), md, "utf8");
+  const fileName = `${spec.event_name.replace(/[\\/:*?"<>|]/g, "-")}·提示词包.html`;
+  await writeFile(path.join(out, fileName), html, "utf8");
   return { dir: out, file: fileName };
 }
 
