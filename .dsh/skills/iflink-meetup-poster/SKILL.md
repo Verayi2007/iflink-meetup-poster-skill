@@ -248,6 +248,7 @@ iflink-meetup-poster/
     ├── new-spec.mjs                  # 人话/填表 → spec.json（交互 / --from / --blank）
     ├── build-prompt.mjs              # 校验 + 提示词装配（零依赖 Node）
     ├── check-palette.py              # 成图配色闸门（Pillow）
+    ├── render-poster.py              # 确定性渲染：代码画文字与版式，零错字
     └── render-images.mjs             # 可选：把提示词接到图像 API（默认只打印请求）
 ```
 
@@ -284,6 +285,7 @@ iflink-meetup-poster/
 | **B 宿主有图像工具** | agent | 运行环境暴露了图像生成工具时，直接调用（提示词取①段、参考图传 `final-poster.png`），出图后自动跑 `check-palette.py` |
 | **C API 自动化** | 脚本 | 自己的 key：`node scripts/render-images.mjs build/prompt.md --ref assets/reference/final-poster.png --execute`（不带 `--execute` 只打印请求，不花钱） |
 | **D 本机百炼**（已可用） | `bl` CLI | 本机已配置 DashScope key：`bl image edit --image assets/reference/final-poster.png --prompt "$(cat build/prompt-compact.txt)" --size "1024*1536" --no-prompt-extend --out-dir build/out` |
+| **R 确定性渲染**（推荐做终稿） | `render-poster.py` | `python scripts/render-poster.py build/spec.json --out build/poster.png --illustration build/illust.png`：文字由代码绘制，**零错字、颜色版式精确**；插画位贴 AI 生成的素材 |
 
 生成短指令版（吃不下长规范的模型必须用它，否则会把 `40px`/`5.3%` 画进画面）：
 `node scripts/build-prompt.mjs build/spec.json --out build/prompt.md --compact build/prompt-compact.txt`
