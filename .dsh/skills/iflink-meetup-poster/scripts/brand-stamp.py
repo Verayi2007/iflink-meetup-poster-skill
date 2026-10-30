@@ -57,6 +57,14 @@ def background_color(img, band_h=None):
     return counter.most_common(1)[0][0]
 
 
+def scaled_size(asset_path, target_h=None, target_w=None):
+    """只算尺寸，不贴图"""
+    asset = Image.open(asset_path).convert("RGBA")
+    aw, ah = asset.size
+    scale = (target_w / aw) if target_w else (target_h / ah)
+    return max(1, int(aw * scale)), max(1, int(ah * scale))
+
+
 def paste_scaled(canvas, asset_path, target_h=None, target_w=None, xy=None):
     asset = Image.open(asset_path).convert("RGBA")
     aw, ah = asset.size
@@ -80,7 +88,7 @@ def main():
     ap.add_argument("--no-slogan", action="store_true")
     ap.add_argument("--no-erase", action="store_true", help="不盖掉模型画的 Logo（调试用）")
     ap.add_argument("--slogan-text", default="Link the IFs, Connect the Dots", help="slogan 文案（默认按规范：IFs 复数、Dots 大写）")
-    ap.add_argument("--slogan-asset", action="store_true", help="改用品牌库里的 slogan 标准图（注意：该图为小写 dots 带句号）")
+    ap.add_argument("--slogan-text-mode", action="store_true", help="不用 PNG，改为用字体绘制 slogan")
     args = ap.parse_args()
 
     src = Image.open(args.image).convert("RGBA")
@@ -121,8 +129,8 @@ def main():
     # 3) slogan
     sw = sh = 0
     if not args.no_slogan:
-        if args.slogan_asset and os.path.exists(slogan_path):
-            sw, sh = paste_scaled(src, slogan_path, target_w=slogan_w, xy=(0, 0))
+        if not args.slogan_text_mode and os.path.exists(slogan_path):
+            sw, sh = scaled_size(slogan_path, target_w=slogan_w)
             sx, sy = right - sw, ly + (lh - sh) // 2
             paste_scaled(src, slogan_path, target_w=slogan_w, xy=(sx, sy))
         else:

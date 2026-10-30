@@ -205,4 +205,5 @@ Logo ─→ 绿标题带（第 1 落点）─→ 黑副标题（第 2 落点）�
 | Logo 是定制图形，不可字体模拟 | 页眉为图形；仅正文出现 `IF.Link` 字符串时用系统字体直打 |
 | 禁衬线，只用无衬线或 mono | 全图无衬线 |
 | 大小写 `IF.Link` / `IF.Land` | 全图统一 `IF.Link`；slogan 的 `IFs` 复数、`Dots` 大写 |
+| Slogan 逐字 `Link the IFs, Connect the Dots` | 无结尾句号；品牌库旧图（小写 `dots.`）不作为标准，规范版图由 `make-slogan.py` 生成 |
 | 蓝底大文本勿用黑 | 本系列无蓝底；深黑灰底上的大文本用**白字**（同原理） |
