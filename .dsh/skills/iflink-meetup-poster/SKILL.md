@@ -136,23 +136,23 @@ python scripts/check-palette.py build/poster.png                       # 成图�
 ### Phase 2 · 提示词装配
 
 ```bash
-# 默认：自然版（学风格、不锁版式）+ 规格版（坐标写死）一起产出
-node scripts/build-prompt.mjs build/spec.json --out build/prompt.md --image2-pack build/pack
+# 产出「一份整合提示词包」：1 个 md + 3 张要上传的图
+node scripts/build-prompt.mjs build/spec.json --out build/prompt.md --pack build/pack
 ```
 
-- 脚本会做 **P0 级校验**（必填、色彩锁、嘉宾数、字数上限、禁用词、版式合法性）并渲染两份提示词：
-  - **自然版**（`05_提示词_自然版`）：只锁「文字 / 配色 / Logo&slogan / 不许加戏」，**版面完全交给模型**，并明确写"左右可以反过来"。**这是默认投喂的版本。**
-  - **规格版**（`05b_提示词_规格版`）：坐标、字号百分比、边距全部写死。只在"要和上一期分毫不差""要拿去做后期对位""要给渲染器对位"时使用。
+- 脚本先做 **P0 级校验**（必填、色彩锁、嘉宾数、字数上限、禁用词、版式合法性），再产出**一份整合包**：
+  - `<活动名>·提示词包.md`：上传清单 + 唯一一段可粘贴提示词 + 出图后两条命令 + 返修话术 + 质检卡，**全部并入这一个文件**
+  - `01_参考图.png` / `02_Logo.svg` / `03_Slogan.png`：要上传的三张图
+- **不再产出多份变体**（A/B/C 排法、规格版坐标）。排版交给模型，包只留一份。`build/prompt.md` 里的规格版仅供渲染器/后期对位参考。
 - 校验报错必须修到 0 错误再往下走；warning 可以带走。
 
 ### Phase 3 · 首轮生成
 
 投喂顺序（对 ChatGPT Image 2 有效，其他模型同理）：
 
-1. 上传 **参考图**：`assets/reference/final-poster.png`。
-2. 上传 **品牌资产**：Logo SVG + `assets/reference/IF.Link-slogan.png`（可只传参考图，其余为增强项）。
-3. 粘贴**自然版**提示词。
-4. 让模型给 2–3 个版式方案，挑一个再进 Phase 4。
+1. 上传包里那三张：`01_参考图.png`、`02_Logo.svg`、`03_Slogan.png`。
+2. 粘贴 md 里「二、把下面整段粘进去」的**唯一一段**提示词。
+3. 出图后先 `brand-stamp.py` 贴正 Logo 与 slogan，再进 Phase 4 质检。
 
 > 参考图的作用是**提供"干净利落的手绘风"这一层质感**，不是提供分区。**绝对不要在提示词里指定"左边嘉宾、右边配图"这类位置** —— 一旦指定，模型必然画成模板。
 
