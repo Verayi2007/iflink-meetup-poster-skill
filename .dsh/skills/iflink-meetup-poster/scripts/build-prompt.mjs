@@ -1054,7 +1054,7 @@ async function main() {
     const pack = await writePromptPack(opts.pack, { spec });
     const packDir = pack.dir;
     console.log(`✅ 提示词包：${path.relative(process.cwd(), packDir)}/${pack.file}`);
-    console.log("   含：1 份整合 md（提示词 + 返修话术 + 质检卡）+ 01_参考图 / 02_Logo / 03_Slogan");
+    console.log("   含：1 份 HTML（提示词 + 出图命令 + 返修话术 + 质检卡）+ 01_参考图 / 02_Logo / 03_Slogan");
   }
 
   if (opts.compact) {
@@ -1066,7 +1066,7 @@ async function main() {
   }
 
   if (!opts.quiet) {
-    console.log("   下一步：打开包里的 md，上传三张图 → 粘贴提示词 → 出图后跑 brand-stamp.py");
+    console.log("   下一步：双击包里的 HTML → 上传三张图 → 点按钮复制提示词 → 出图后跑 brand-stamp.py");
 
   }
 }
