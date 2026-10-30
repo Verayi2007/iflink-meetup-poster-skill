@@ -17,6 +17,7 @@
  */
 
 import { readFile, writeFile, mkdir } from "node:fs/promises";
+import { execSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -960,7 +961,10 @@ function parseArgs(argv) {
     else if (a === "--check-only") opts.checkOnly = true;
     else if (a === "--emit-spec") opts.emitSpec = argv[++i];
     else if (a === "--compact") opts.compact = argv[++i];
-    else if (a === "--pack" || a === "--image2-pack") opts.pack = argv[++i];
+    else if (a === "--pack" || a === "--image2-pack") {
+      const next = argv[i + 1];
+      opts.pack = next && !next.startsWith("-") ? argv[++i] : "auto";
+    }
     else if (a === "--quiet") opts.quiet = true;
     else if (a === "--help" || a === "-h") opts.help = true;
     else if (a.startsWith("-")) throw new Error(`未知参数：${a}`);
@@ -1001,6 +1005,33 @@ function printReport(spec, list) {
   console.log(line);
   console.log(`结果：${errors.length} error / ${warns.length} warning`);
   return errors.length === 0;
+}
+
+/** 桌面投喂包目录：用户要的是"跑完就在桌面上看到" */
+/** 取真正的桌面：优先读注册表（很多人把桌面重定向到别的盘） */
+function realDesktop() {
+  if (process.platform === "win32") {
+    try {
+      const out = execSync(
+        'reg query "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\User Shell Folders" /v Desktop',
+        { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] },
+      );
+      const m = out.match(/Desktop\s+REG_(?:EXPAND_)?SZ\s+(.+)/i);
+      if (m) {
+        const expanded = m[1].trim().replace(/%([^%]+)%/g, (_, k) => process.env[k] ?? "");
+        if (expanded && existsSync(expanded)) return expanded;
+      }
+    } catch {
+      /* 注册表读不到就走兜底 */
+    }
+  }
+  const home = process.env.USERPROFILE || process.env.HOME || "";
+  return [path.join(home, "Desktop"), path.join(home, "桌面")].find((p) => existsSync(p)) ?? path.join(home, "Desktop");
+}
+
+function desktopPackDir(spec) {
+  const safe = spec.event_name.replace(/[\\/:*?"<>|]/g, "-");
+  return path.join(realDesktop(), `${safe} 投喂包`);
 }
 
 async function main() {
@@ -1054,10 +1085,27 @@ async function main() {
   console.log(`✅ 提示词包已生成：${path.relative(process.cwd(), outPath)}`);
 
   if (opts.pack) {
-    const pack = await writePromptPack(opts.pack, { spec });
+    const wantDesktop = opts.pack === "auto";
+    let target = wantDesktop ? desktopPackDir(spec) : opts.pack;
+    let pack;
+    try {
+      pack = await writePromptPack(target, { spec });
+    } catch (e) {
+      // 桌面在沙箱外 / 无权限时，退回到当前目录的 build/，并明确告知
+      const fallback = path.resolve("build", `${spec.event_name.replace(/[\\/:*?"<>|]/g, "-")} 投喂包`);
+      pack = await writePromptPack(fallback, { spec });
+      console.warn(`⚠️ 没有权限写桌面（${e.code || e.message}），已改为放在：${fallback}`);
+    }
     const packDir = pack.dir;
-    console.log(`✅ 提示词包：${path.relative(process.cwd(), packDir)}/${pack.file}`);
-    console.log("   含：1 份 HTML（提示词 + 出图命令 + 返修话术 + 质检卡）+ 01_参考图 / 02_Logo / 03_Slogan");
+    console.log("");
+    console.log("📦 投喂包已生成：");
+    console.log(`   ${packDir}`);
+    console.log(`   └── ${pack.file}`);
+    console.log("");
+    console.log("👉 请把这三句话转告用户：");
+    console.log("   1. 打开这个文件夹，双击里面的 HTML");
+    console.log("   2. 把 01_参考图 / 02_Logo / 03_Slogan 三张图传给 ChatGPT，再点「复制提示词」粘进去");
+    console.log("   3. 拿到 3 版海报，挑一版发回来，我来贴 Logo、验色");
   }
 
   if (opts.compact) {
@@ -1069,7 +1117,6 @@ async function main() {
   }
 
   if (!opts.quiet) {
-    console.log("   下一步：双击包里的 HTML → 上传三张图 → 点按钮复制提示词 → 出图后跑 brand-stamp.py");
 
   }
 }
