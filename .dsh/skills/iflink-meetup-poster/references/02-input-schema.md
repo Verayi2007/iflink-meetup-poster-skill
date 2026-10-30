@@ -66,7 +66,7 @@
 | `decor.preset` | `none` | 右下角点缀角色：`none` / `topic`（从嘉宾话题取意象）/ `custom`。它不是品牌吉祥物 |
 | `decor.from_guest` | 空 | `preset: topic` 时必填（E064），填嘉宾姓名 |
 | `decor.description` | 空 | `preset: custom` 时必填（E063）；`topic` 时可作为补充提示 |
-| `decor.accent_color` | 空 | 全图唯一允许的非品牌色，HEX；面积 ≤6% |
+| `decor.accent_color` | **空（无默认）** | 每期自定，可不填；填了是全图唯一允许的非品牌色，面积 ≤6%、只能落在角色与涂鸦上 |
 | `layout` | `auto` | **只影响代码渲染器**（`render-poster.py`），提示词不再指定排版。可选 classic/stack/band/hero/grid/auto |
 | `layout_note` | 空 | 版面补充一句话（≤80 字），如"插画占满上半版" |
 | `decor.props` | 空 | 道具描述，如「白色纸杯，杯身竖排 IF.Link」 |

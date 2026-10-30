@@ -268,7 +268,7 @@ function validate(spec) {
     err("E065", "decor.accent_color", "accent_color 必须是 #RRGGBB 形式");
   }
   if (dec.preset !== "none" && !isStr(dec.accent_color) && dec.preset === "custom") {
-    warn("W012", "decor.accent_color", "自定义角色没指定点缀色 HEX，模型容易自由发挥；建议写明如 #FED754");
+    warn("W012", "decor.accent_color", "自定义角色没指定点缀色 HEX，模型容易自由发挥；要指定就写一个 HEX（不写＝不引入任何异色）");
   }
 
   /* —— 版式 —— */

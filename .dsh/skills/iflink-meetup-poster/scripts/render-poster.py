@@ -190,7 +190,8 @@ def paste_illustration(img, box, path):
 def render(spec, illustration=None):
     img = Image.new("RGB", (W, H), CREAM)
     d = ImageDraw.Draw(img)
-    accent = (spec.get("decor", {}).get("accent_color") or "#E9B44C")
+    # 点缀色没填就用品牌绿（不引入任何"默认异色"）
+    accent = (spec.get("decor", {}).get("accent_color") or "#B1FA63")
     accent = tuple(int(accent[i:i + 2], 16) for i in (1, 3, 5))
 
     # ── 页眉 ──
