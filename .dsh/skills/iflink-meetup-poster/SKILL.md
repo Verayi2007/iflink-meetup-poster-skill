@@ -238,6 +238,7 @@ iflink-meetup-poster/
 │   └── reference/
 │       ├── final-poster.png          # 定稿视觉基准（1024×1536）
 │       ├── IF.Link_浅色背景.svg       # 浅底用 Logo（黑字）
+│       ├── IF.Link-slogan.png         # slogan 标准图（品牌资产，随投喂包一起上传）
 │       └── IF.Link_深色背景.svg       # 深底用 Logo（白字）
 ├── templates/
 │   ├── intake-form.md                # 中文填表（粘给 new-spec.mjs 即可）
@@ -281,7 +282,7 @@ iflink-meetup-poster/
 
 | 通道 | 谁执行 | 需要什么 |
 | --- | --- | --- |
-| **A 手工**（默认，任何环境可用） | 人 | 一键出投喂包：`node scripts/build-prompt.mjs build/spec.json --image2-pack build/pack`，里面已备好参考图、Logo、可粘贴提示词、返修话术、质检卡 |
+| **A 手工**（默认，任何环境可用） | 人 | 一键出投喂包：`node scripts/build-prompt.mjs build/spec.json --image2-pack build/pack`，里面已备好参考图、Logo、Slogan 图与文案、可粘贴提示词、返修话术、质检卡 |
 | **B 宿主有图像工具** | agent | 运行环境暴露了图像生成工具时，直接调用（提示词取①段、参考图传 `final-poster.png`），出图后自动跑 `check-palette.py` |
 | **C API 自动化** | 脚本 | 自己的 key：`node scripts/render-images.mjs build/prompt.md --ref assets/reference/final-poster.png --execute`（不带 `--execute` 只打印请求，不花钱） |
 | **D 本机百炼**（已可用） | `bl` CLI | 本机已配置 DashScope key：`bl image edit --image assets/reference/final-poster.png --prompt "$(cat build/prompt-compact.txt)" --size "1024*1536" --no-prompt-extend --out-dir build/out` |

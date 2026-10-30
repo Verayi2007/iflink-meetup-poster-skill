@@ -722,19 +722,48 @@ async function writeImage2Pack(dir, { rendered, spec }) {
   const logoFile = spec.logo_variant === "dark" ? "IF.Link_深色背景.svg" : "IF.Link_浅色背景.svg";
   await copyFile(path.join(refDir, logoFile), path.join(out, "02_Logo.svg"));
 
+  // slogan 标准图（品牌资产，和 Logo 一样属于"不可重绘"的图形）
+  let hasSloganImg = false;
+  try {
+    await copyFile(path.join(refDir, "IF.Link-slogan.png"), path.join(out, "03_Slogan.png"));
+    hasSloganImg = true;
+  } catch {
+    /* 没有就跳过，不影响其余文件 */
+  }
+
+  await writeFile(
+    path.join(out, "04_Slogan.txt"),
+    [
+      `# Slogan（逐字使用，大小写不可改）`,
+      "",
+      spec.slogan,
+      "",
+      "写作要点：",
+      "- `IFs` 是复数，不是 IF。",
+      "- `Dots` 首字母大写，connect 小写。",
+      "- 位置固定在页眉右上，右对齐，30px 级加粗，与左侧 Logo 同一水平线。",
+      "- 这是品牌文案，不是标语创作：不要改写、不要翻译、不要加句号。",
+      "",
+      hasSloganImg
+        ? "配套标准图：`03_Slogan.png`（可直接作为参考图上传，让模型照着字形画）"
+        : "（本次未附带标准图，按上面的文字逐字写出即可）",
+    ].join("\n"),
+    "utf8",
+  );
+
   const main = extractMainPrompt(rendered);
   await writeFile(
-    path.join(out, "03_整版提示词_复制这一段.txt"),
+    path.join(out, "05_整版提示词_复制这一段.txt"),
     [
       `# ${spec.event_name} · ${spec.kicker}`,
-      "# 用法：先把 01_参考图.png 和 02_Logo.svg 传进 ChatGPT，再把下面这段整段粘进去。",
+      `# 用法：先把 01_参考图.png、02_Logo.svg${hasSloganImg ? "、03_Slogan.png" : ""} 传进 ChatGPT，再把下面这段整段粘进去。`,
       "",
       main,
     ].join("\n"),
     "utf8",
   );
 
-  await writeFile(path.join(out, "04_返修话术.txt"), repairScripts(spec), "utf8");
+  await writeFile(path.join(out, "06_返修话术.txt"), repairScripts(spec), "utf8");
 
   await writeFile(
     path.join(out, "00_怎么用.md"),
@@ -743,13 +772,14 @@ async function writeImage2Pack(dir, { rendered, spec }) {
       "",
       "## 三步",
       "",
-      "1. 打开 ChatGPT（用 Image 2），**先传两张图**：`01_参考图.png`、`02_Logo.svg`。",
-      "2. 传完补一句：**「Logo 是定制图形，禁止重绘、改字重、改字距、改色」**。",
-      "3. 打开 `03_整版提示词_复制这一段.txt`，从「【角色】」开头整段复制，粘进去，发。",
+      "1. 打开 ChatGPT（用 Image 2），**先传三份品牌资产**：`01_参考图.png`、`02_Logo.svg`、`03_Slogan.png`。",
+      "2. 传完补一句：**「Logo 与 slogan 是定制图形，禁止重绘、改字重、改字距、改色；slogan 写作 "
+      + spec.slogan + "，IFs 是复数、Dots 首字母大写」**。",
+      "3. 打开 `05_整版提示词_复制这一段.txt`，从「【角色】」开头整段复制，粘进去，发。",
       "",
       "## 出图之后",
       "",
-      "- 按 `05_质检卡.md` 逐项打勾；任何一项不对，就从 `04_返修话术.txt` 里挑对应的一条贴进去。",
+      "- 按 `07_质检卡.md` 逐项打勾；任何一项不对，就从 `06_返修话术.txt` 里挑对应的一条贴进去。",
       "- **一次只修一处**，修完再修下一处；不要让它整版重来（越改越乱就是这个原因）。",
       "- 想要多挑一挑，可以追加一句：**「用同样的内容，再给我 3 个不同版式方案，画风保持一致」**。",
       "",
@@ -773,7 +803,7 @@ async function writeImage2Pack(dir, { rendered, spec }) {
   );
 
   await writeFile(
-    path.join(out, "05_质检卡.md"),
+    path.join(out, "07_质检卡.md"),
     [
       `# ${spec.event_name} · 质检卡`,
       "",
@@ -912,7 +942,7 @@ async function main() {
   if (opts.image2Pack) {
     const packDir = await writeImage2Pack(opts.image2Pack, { rendered, spec });
     console.log(`✅ Image 2 投喂包：${path.relative(process.cwd(), packDir)}/`);
-    console.log("   含：01_参考图 / 02_Logo / 03_整版提示词 / 04_返修话术 / 05_质检卡 / 00_怎么用");
+    console.log("   含：00_怎么用 / 01_参考图 / 02_Logo / 03_Slogan.png / 04_Slogan.txt / 05_整版提示词 / 06_返修话术 / 07_质检卡");
   }
 
   if (opts.compact) {
