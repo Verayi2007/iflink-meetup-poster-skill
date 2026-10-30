@@ -644,6 +644,80 @@ function compactPrompt(spec) {
   return lines.join("\n");
 }
 
+/* ────────────────────────────── 自然语言版提示词（默认投喂） ────────────────────────────── */
+
+/**
+ * 规格版（坐标/百分比）适合"精确复刻"和"渲染对位"，但直接喂给生图模型会让它画得像模板。
+ * 自然版用设计师口述的语气：只锁"必须出现的文字 + 几条硬约束"，其余留给模型。
+ */
+function briefPrompt(spec) {
+  const layoutHint = {
+    classic: "左边文字、右边画，这是最稳的排法",
+    stack: "上半张画、下半张字，嘉宾排成两列",
+    band: "中间横着一条画，上面标题、下面信息",
+    hero: "整张铺满插画，文字压在图上",
+    grid: "嘉宾做成一格一格的小卡片",
+  }[resolveLayout(spec)];
+
+  const sceneHint = {
+    "sit-around": "画几个年轻人围坐聊天",
+    whiteboard: "画一个人在白板前比划、其他人围着听",
+    collab: "画几个人凑在一张桌子前一起看屏幕",
+    none: "这期不画大插画，右侧留白就好",
+    custom: `画这个场景：${spec.illustration.description}`,
+  }[spec.illustration.scene];
+
+  let decorHint = "";
+  if (spec.decor.preset !== "none") {
+    const guest = spec.guests.find((g) => g.name === spec.decor.from_guest);
+    const what =
+      spec.decor.preset === "custom"
+        ? spec.decor.description
+        : `一个呼应「${guest?.name ?? ""}」话题「${guest?.topic ?? ""}」的小东西（${spec.decor.description || "自己挑一个最具体的意象"}）`;
+    decorHint =
+      `\n· 右下角可以放个小角色：${what}` +
+      (isStr(spec.decor.accent_color) ? `，用点缀色 ${spec.decor.accent_color}，全图只此一处异色` : "");
+  }
+
+  const guestLines = spec.guests.map((g) => `  ${g.name}｜${g.topic}`).join("\n");
+
+  const lines = [
+    "帮我做一张活动海报，竖版 2:3。",
+    "",
+    "气质：手绘的、社区气的，像学生社团自己做的那种，不是商业模板。奶油白纸底，黑色粗字，荧光绿用来压重点；",
+    "要有手写和涂鸦的痕迹，脏一点、野一点没关系，别干净得像 PPT。",
+    "附的参考图只借它的气质和笔触，不要照抄它的分区。",
+    "",
+    "必须出现的文字（逐字，别改、别无中生有）：",
+    `· 页眉左：IF.Link　　页眉右：${spec.slogan}`,
+    `· 大标题：${spec.event_name}`,
+    `· 副标题：${spec.kicker}`,
+  ];
+  if (isStr(spec.one_liner)) lines.push(`· 一句话：${spec.one_liner}`);
+  lines.push(
+    `· 时间：${spec.date_time}`,
+    `· 地点：${spec.location}`,
+    `· 嘉宾 ${spec.guests.length} 位（姓名 + 各自的话题，一条不落）：`,
+    guestLines,
+    `· 福利：${spec.perks_text}`,
+    "",
+    spec.layout === "auto"
+      ? "版式：你自己挑一个最合适的，别做成四平八稳的模板。硬要求只有一个 —— 活动名最醒目，信息按「活动名 > 时间地点 > 嘉宾 > 福利」的轻重走，留白别抠门。"
+      : `版式：${layoutHint}，具体怎么摆你定；硬要求是活动名最醒目、信息按「活动名 > 时间地点 > 嘉宾 > 福利」的轻重走，留白别抠门。`,
+    `插画：${sceneHint}，人物保持线稿，别画写实脸。${decorHint.replace(/\n· /, "另外，")}`,
+    "",
+    "几条硬要求：",
+    "· 颜色只用：奶油白 #F6F6F1、黑 #242021、荧光绿 #B1FA63" +
+      (isStr(spec.decor.accent_color) && spec.decor.preset !== "none" ? `，外加那一个点缀色 ${spec.decor.accent_color}` : ""),
+    "  —— 不要橙红（#FE7733 尤其不要），不要渐变、不要 3D、不要投影光效。",
+    "· Logo 和 slogan 是现成的图形，别重画、别改字重字距；slogan 里 IFs 是复数、Dots 首字母大写。",
+    "· 除了上面列的文字，一个字都别加：不要主办方、不要二维码、不要报名链接、不要联系方式。",
+    "",
+    "先给我 2–3 个不同版式的方案，画风保持一致，我挑一个。",
+  );
+  return lines.join("\n");
+}
+
 /* ────────────────────────────── Image 2 投喂包 ────────────────────────────── */
 
 /** 从渲染好的提示词包里抽出「① 整版提示词」那段，供直接粘贴 */
@@ -761,10 +835,23 @@ async function writeImage2Pack(dir, { rendered, spec }) {
 
   const main = extractMainPrompt(rendered);
   await writeFile(
-    path.join(out, "05_整版提示词_复制这一段.txt"),
+    path.join(out, "05_提示词_自然版（先试这个）.txt"),
     [
       `# ${spec.event_name} · ${spec.kicker}`,
-      `# 用法：先把 01_参考图.png、02_Logo.svg${hasSloganImg ? "、03_Slogan.png" : ""} 传进 ChatGPT，再把下面这段整段粘进去。`,
+      `# 用法：传完 01_参考图.png、02_Logo.svg${hasSloganImg ? "、03_Slogan.png" : ""}，把下面整段粘进去。`,
+      "# 这一版像设计师口述需求，只锁文字和几条硬约束，版式交给模型 —— 出来的东西更活。",
+      "",
+      briefPrompt(spec),
+    ].join("\n"),
+    "utf8",
+  );
+
+  await writeFile(
+    path.join(out, "05b_提示词_规格版（要精确复刻时用）.txt"),
+    [
+      `# ${spec.event_name} · ${spec.kicker}`,
+      "# 这一版把版式、字号、边距都写死了，适合「要和上一期分毫不差」或「要拿去做后期对位」的场景。",
+      "# 直接喂给生图模型会偏死板，先试 05_自然版。",
       "",
       main,
     ].join("\n"),
@@ -781,7 +868,10 @@ async function writeImage2Pack(dir, { rendered, spec }) {
       "## 两步",
       "",
       "1. 打开 ChatGPT（用 Image 2），**先传三份品牌资产**：`01_参考图.png`、`02_Logo.svg`、`03_Slogan.png`。",
-      "2. 打开 `05_整版提示词_复制这一段.txt`，从「【角色】」开头整段复制，粘进去，发。",
+      "2. 打开 `05_提示词_自然版（先试这个）.txt`，整段复制，粘进去，发。",
+      "",
+      "**先试自然版**（像设计师口述：只锁文字和几条硬约束，版式交给模型）。它出来的东西更活。",
+      "如果要求「和上一期分毫不差」，再换 `05b_提示词_规格版` —— 那版把版式、字号、边距都写死了，但喂给模型容易画出模板感。",
       "",
       "> 不用再额外补任何话 —— 「Logo / slogan 禁止重绘、slogan 逐字为 " + spec.slogan + "（IFs 复数、Dots 大写）」",
       "> 这条已经写进提示词的「▍品牌资产（锁死）」段落里了。",

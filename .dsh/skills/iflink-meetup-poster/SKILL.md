@@ -278,11 +278,11 @@ iflink-meetup-poster/
 
 ## 10. 谁来真正出图（重要）
 
-**这个 Skill 不会自己调用 image2。** 它产出的是提示词包（含参考图与 Logo 的投喂顺序）；真正把图生出来的是：
+**提示词分两档**：自然版（口述型，只锁文字与硬约束，默认）／规格版（坐标型，用于精确复刻）。**这个 Skill 不会自己调用 image2。** 它产出的是提示词包（含参考图与 Logo 的投喂顺序）；真正把图生出来的是：
 
 | 通道 | 谁执行 | 需要什么 |
 | --- | --- | --- |
-| **A 手工**（默认，任何环境可用） | 人 | 一键出投喂包：`node scripts/build-prompt.mjs build/spec.json --image2-pack build/pack`，里面已备好参考图、Logo、Slogan 图与文案、可粘贴提示词、返修话术、质检卡 |
+| **A 手工**（默认，任何环境可用） | 人 | 一键出投喂包：`node scripts/build-prompt.mjs build/spec.json --image2-pack build/pack`。包里有**两版提示词**：`05_自然版`（默认，像设计师口述，版式交给模型，出图更活）与 `05b_规格版`（坐标写死，只在要精确复刻时用）。其余：参考图、Logo、Slogan 图与文案、返修话术、质检卡 |
 | **B 宿主有图像工具** | agent | 运行环境暴露了图像生成工具时，直接调用（提示词取①段、参考图传 `final-poster.png`），出图后自动跑 `check-palette.py` |
 | **C API 自动化** | 脚本 | 自己的 key：`node scripts/render-images.mjs build/prompt.md --ref assets/reference/final-poster.png --execute`（不带 `--execute` 只打印请求，不花钱） |
 | **D 本机百炼**（已可用） | `bl` CLI | 本机已配置 DashScope key：`bl image edit --image assets/reference/final-poster.png --prompt "$(cat build/prompt-compact.txt)" --size "1024*1536" --no-prompt-extend --out-dir build/out` |
