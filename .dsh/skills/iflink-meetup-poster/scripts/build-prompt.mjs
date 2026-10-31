@@ -921,10 +921,10 @@ async function writePromptPack(dir, { spec }) {
 
 <h2>三、出图之后</h2>
 <div class="note">
-  <strong>三张图出来后，挑一张发给我就行</strong>，剩下两件事我来做（不用你自己跑任何命令）：
+  <strong>三张图出来后，挑一张发给我就行</strong>，剩下这些我来做（不用你自己跑任何命令，也不强制）：
   <ol style="margin:10px 0 6px">
     <li><strong>把 Logo 和 slogan 贴正。</strong> 生图模型画不准这几个字，所以会用它画的那块盖掉，换成官方 Logo 重新贴，位置和上一期一致。</li>
-    <li><strong>验一遍颜色。</strong> 看荧光绿 / 黑 / 奶油白三色占比对不对，点缀色是不是只用了一种（暖橙或淡紫）、有没有跑出色板。</li>
+    <li><strong>（可选）量一下颜色。</strong> 你要是觉得偏色，我再帮你看占比；没把握就直接发，不用等这一步。</li>
   </ol>
   这两步做完，图就可以直接发了。
 </div>
@@ -933,7 +933,7 @@ async function writePromptPack(dir, { spec }) {
 <div class="note">一次只修一处，修完再修下一处 —— 同时提多个修改点，模型会把别的地方一起改坏。</div>
 <pre>${esc(repairs).replace(/```text|```/g, "").trim()}</pre>
 
-<h2>五、验收清单</h2>
+<h2>五、出问题时对照（不强制打勾）</h2>
 <table>
   <tr><th style="width:56px">闸门</th><th style="width:110px">检查项</th><th>通过标准</th><th style="width:44px">✔</th></tr>
   ${qcRows.map(([g, k, v]) => `<tr><td>${g}</td><td>${k}</td><td>${esc(v)}</td><td style="text-align:center">☐</td></tr>`).join("\n  ")}
