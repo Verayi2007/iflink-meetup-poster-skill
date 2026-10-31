@@ -268,7 +268,7 @@ def main():
             f"→ 点缀色只能从 #FE7733 暖橙 / #B2A1FF 淡紫 里选一个（当前：{top_txt}）"
         )
         if args.profile == "baseline":
-            warns.append(msg + "｜这是旧色板时期的参考样张，仅作风格基线，不代表新图可照此配色")
+            warns.append(msg + "｜参考基准只提供画风与版式，不参与配色合规判定；新图按现行双色板执行")
         else:
             fails.append(msg)
     elif palette_used:

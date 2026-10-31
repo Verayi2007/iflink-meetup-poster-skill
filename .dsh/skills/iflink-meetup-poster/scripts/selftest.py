@@ -62,7 +62,7 @@ def check_baseline():
     r = sh([sys.executable, os.path.join(HERE, "check-palette.py"), p, "--profile", "baseline"])
     out = (r.stdout or "") + (r.stderr or "")
     check("定稿在 baseline 档不判 FAIL", r.returncode == 0, "exit=%d" % r.returncode)
-    check("提示为旧色板基线", "旧色板" in out)
+    check("提示为参考基准（不参与合规）", "参考基准" in out or "不参与配色合规" in out)
 
 
 def check_render(tmp):
