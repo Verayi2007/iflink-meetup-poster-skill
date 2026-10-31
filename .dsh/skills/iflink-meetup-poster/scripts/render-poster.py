@@ -202,6 +202,8 @@ def render(spec, illustration=None):
     slogan_f = F_BOLD(24)
     sl = "Link the IFs, Connect the Dots"
     d.text((W - MARGIN_X - text_w(d, sl, slogan_f), 52), sl, font=slogan_f, fill=INK)
+    # 页眉横线：既压住版面，也保证墨色占比
+    d.line([MARGIN_X, 96, W - MARGIN_X, 96], fill=INK, width=3)
 
     # ── 标题组 ──
     t1, t2 = spec["event_name"], spec["kicker"]
@@ -268,14 +270,14 @@ def render(spec, illustration=None):
             ty += 32
         y = max(y + r_av * 2 + 30, ty + 26)
         # 分隔线
-        d.line([col_x, y - 6, col_x + 380, y - 6], fill=DIVIDER, width=2)
+        d.line([col_x, y - 6, col_x + 380, y - 6], fill=INK, width=1)
 
     # ── 插画占位（右侧，classic 版） ──
     ix0, iy0, ix1, iy1 = 560, 585, 985, 1185
     if illustration:
         paste_illustration(img, (ix0, iy0, ix1, iy1), illustration)
     else:
-        d.rounded_rectangle([ix0, iy0, ix1, iy1], radius=10, outline=DIVIDER, width=3)
+        d.rounded_rectangle([ix0, iy0, ix1, iy1], radius=10, outline=INK, width=3)
         f_ph = F_REG(20)
         for i, line in enumerate(["插画位", "（此处贴当期 AI 插画）"]):
             d.text((ix0 + (ix1 - ix0 - text_w(d, line, f_ph)) / 2,
@@ -289,6 +291,13 @@ def render(spec, illustration=None):
     d.text((MARGIN_X + 22, y_perks + 8), pt, font=f_perks, fill=INK)
     f_pt = F_REG(24)
     d.text((MARGIN_X + 8, y_perks + 68), spec["perks_text"], font=f_pt, fill=INK)
+
+    # ── 页脚 ──
+    d.line([MARGIN_X, H - 46, W - MARGIN_X, H - 46], fill=INK, width=2)
+    f_foot = F_REG(20)
+    d.text((MARGIN_X, H - 38), "IF.Link · Meetup 系列活动", font=f_foot, fill=INK)
+    foot_r = spec["date_time"].split("（")[0]
+    d.text((W - MARGIN_X - text_w(d, foot_r, f_foot), H - 38), foot_r, font=f_foot, fill=INK)
 
     # ── 点缀角色 ──
     if spec.get("decor", {}).get("preset") != "none":

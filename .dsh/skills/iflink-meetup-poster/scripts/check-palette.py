@@ -202,6 +202,12 @@ def main():
     ap.add_argument("--json", dest="json_out", help="输出 JSON 报告")
     ap.add_argument("--debug", action="store_true", help="打印完整色相分布与采样点")
     ap.add_argument("--max-side", type=int, default=900, help="分析前等比缩到的最长边（默认 900）")
+    ap.add_argument(
+        "--profile",
+        choices=["final", "draft", "baseline"],
+        default="final",
+        help="final=交付图（默认，严格）｜draft=文字层草稿（跳过点缀色板）｜baseline=仓库参考基准（旧色板，板外色只告警）",
+    )
     args = ap.parse_args()
 
     if not os.path.isfile(args.image):
@@ -254,11 +260,17 @@ def main():
     else:
         oks.append(f"{'点缀色面积':<7} {accent_total:5.1f}%  上限 {ACCENT_TOTAL_MAX:.0f}%")
 
-    if off_share > OFF_PALETTE_MAX:
-        fails.append(
+    if args.profile == "draft":
+        warns.append(f"草稿模式：跳过点缀色板校验（当前 {top_txt}）。渲染通道只解决文字层，不作为交付验收依据。")
+    elif off_share > OFF_PALETTE_MAX:
+        msg = (
             f"{'点缀色合规':<7} 板外异色 {off_share:5.1f}%  上限 {OFF_PALETTE_MAX:.1f}%  "
             f"→ 点缀色只能从 #FE7733 暖橙 / #B2A1FF 淡紫 里选一个（当前：{top_txt}）"
         )
+        if args.profile == "baseline":
+            warns.append(msg + "｜这是旧色板时期的参考样张，仅作风格基线，不代表新图可照此配色")
+        else:
+            fails.append(msg)
     elif palette_used:
         oks.append(f"{'点缀色合规':<7} {used_txt}（色板：暖橙 #FE7733 / 淡紫 #B2A1FF）")
     else:
@@ -272,7 +284,7 @@ def main():
     # ── 输出 ──
     line = "─" * 64
     print(line)
-    print("IF.Link Meetup 海报 · 配色闸门 G2")
+    print(f"IF.Link Meetup 海报 · 配色闸门 G2 ｜ profile={args.profile}")
     print(f"文件：{args.image}")
     print(f"尺寸：{w}×{h}（分析采样 {total} px）")
     print(line)
@@ -286,7 +298,8 @@ def main():
 
     verdict = "FAIL" if fails else ("WARN" if warns else "PASS")
     icon = {"PASS": "✅", "WARN": "⚠️", "FAIL": "❌"}[verdict]
-    print(f"{icon} 判定：{verdict}   （主色三色占比是硬指标；点缀色只能是 #FE7733 或 #B2A1FF，二选一，≤6%）")
+    profile_note = {"final": "交付图", "draft": "文字层草稿（不作交付依据）", "baseline": "仓库参考基准（旧色板）"}[args.profile]
+    print(f"{icon} 判定：{verdict}   ［{profile_note}］主色三色占比是硬指标；点缀色只能是 #FE7733 或 #B2A1FF，二选一，≤6%")
 
     if args.debug:
         print(line)

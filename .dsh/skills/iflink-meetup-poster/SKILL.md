@@ -275,7 +275,7 @@ node scripts/build-prompt.mjs build/spec.json --out build/prompt.md --pack build
 | **G6 品牌资产** | Logo 未变形、slogan 大小写正确、方位正确 | 放大到 200% 看 |
 
 ```bash
-python scripts/check-palette.py build/poster.png        # G2
+python scripts/check-palette.py build/poster.png --profile final   # G2（交付图）
 ```
 
 详细判定标准、阈值与判例见 **[references/04-qc-rules.md](references/04-qc-rules.md)**。

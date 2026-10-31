@@ -227,7 +227,7 @@ $ python scripts/check-palette.py poster.png
 | Python | ≥ 3.9 + Pillow | 贴牌 / 验色 / 渲染 / 自检 |
 | 一个图像模型 | — | ChatGPT Image 2（推荐）或 API |
 
-装好后先跑 `python scripts/doctor.py`，全绿再往下。
+装好后先跑 `python scripts/doctor.py` 自检环境；改过规则再跑 `python scripts/selftest.py` 回归（模板 spec / 基线 / 渲染 / 色板四组断言）。
 
 ---
 
