@@ -1,0 +1,57 @@
+name: selftest
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".dsh/skills/iflink-meetup-poster/**"
+      - ".github/workflows/selftest.yml"
+  pull_request:
+    paths:
+      - ".dsh/skills/iflink-meetup-poster/**"
+  workflow_dispatch:
+
+jobs:
+  selftest:
+    name: 技能自检（Linux / Node 20 / Python 3.11）
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .dsh/skills/iflink-meetup-poster
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 安装依赖（Pillow + 中文字体）
+        run: |
+          python -m pip install --upgrade pip
+          pip install pillow
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq fonts-noto-cjk
+
+      - name: 环境自检
+        run: python scripts/doctor.py
+
+      - name: Node 语法与 spec 校验
+        run: |
+          node --check scripts/build-prompt.mjs
+          node --check scripts/new-spec.mjs
+          node scripts/build-prompt.mjs templates/sample-a-original.json --check-only
+
+      - name: 技能自检（模板 / 基线 / 渲染 / 色板）
+        run: python scripts/selftest.py
+
+      - name: 版本号一致性
+        run: |
+          ver=$(grep -oP 'version:\s*"\K[0-9]+\.[0-9]+\.[0-9]+' SKILL.md | head -1)
+          echo "SKILL.md version = $ver"
+          test -n "$ver" || (echo "SKILL.md 缺少 metadata.version" && exit 1)
+          grep -q "$ver" README.md || (echo "README 徽章版本与 SKILL.md 不一致" && exit 1)
