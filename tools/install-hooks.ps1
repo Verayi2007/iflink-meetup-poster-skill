@@ -3,8 +3,14 @@ $root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $hookDir = Join-Path $root ".git/hooks"
 $sh = @"
 #!/bin/sh
-# 推送前自检；失败则阻止推送（--no-verify 可跳过）
-pwsh -NoProfile -File "`$(git rev-parse --show-toplevel)/tools/preflight.ps1" || {
+# 推送前自检；失败则阻止推送（git push --no-verify 可跳过）
+# 优先 pwsh(PowerShell 7)，没有就退回 Windows PowerShell 5.1
+if command -v pwsh >/dev/null 2>&1; then
+  PS=pwsh
+else
+  PS=powershell
+fi
+"`$PS" -NoProfile -ExecutionPolicy Bypass -File "`$(git rev-parse --show-toplevel)/tools/preflight.ps1" || {
   echo ""
   echo "preflight 失败：修复后再推，或 git push --no-verify 强推"
   exit 1
