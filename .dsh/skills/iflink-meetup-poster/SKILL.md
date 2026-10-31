@@ -2,9 +2,19 @@
 name: iflink-meetup-poster
 description: IF.Link Meetup 系列活动海报的标准化生成与质检工作流。把活动信息（时间/地点/嘉宾/福利）规范化后，产出可直接投喂图像模型的整版提示词、局部重绘提示词、质检报告与批量清单，稳定复现「奶油白画布 + 深黑灰墨块 + 荧光绿 #B1FA63 + 手绘线稿插画」的原作质感。当用户要做 Meetup / 线下分享会 / 沙龙活动海报，要复刻这张绿黑手绘风海报，或要把系列活动海报批量标准化产出时使用。
 whenToUse: 用户提到「Meetup 海报」「活动海报」「分享会海报」「IF.Link 海报」「复刻这张海报」「批量出海报」，或直接给出活动时间/地点/嘉宾/福利并要求出海报时。
+license: MIT
+compatibility: >-
+  Requires Node.js 18+ (zero npm deps) and Python 3.9+ with Pillow. Needs an image
+  model (ChatGPT Image 2 recommended, or an image API) for final rendering.
+  Fonts: Windows/macOS built-in, Linux needs fonts-noto-cjk. Brand assets in
+  assets/reference/ are IF.Link internal only and not covered by the MIT license.
 metadata:
+  author: Verayi2007
+  maintainer: Verayi2007
   brand: IF.Link
-  version: 1.0.0
+  version: "2.1.0"
+  status: beta
+  updated: "2026-10-31"
   canvas: "1024x1536 (2:3)"
   palette: "#B1FA63 / #242021 / #F6F6F1"
   upstream: ChatGPT Image 2

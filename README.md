@@ -8,7 +8,7 @@
 <sub>Say it in one sentence. Get a poster that still looks like it came from the same studio.</sub></p>
 
 <p>
-<img src="https://img.shields.io/badge/version-2.0.0-B1FA63?style=flat-square&labelColor=242021" alt="version" />
+<img src="https://img.shields.io/badge/version-2.1.0-B1FA63?style=flat-square&labelColor=242021" alt="version" />
 <img src="https://img.shields.io/badge/license-MIT-242021?style=flat-square" alt="license" />
 <img src="https://img.shields.io/badge/Node-%E2%89%A518-242021?style=flat-square&logo=node.js&logoColor=B1FA63" alt="node" />
 <img src="https://img.shields.io/badge/Python-%E2%89%A53.9-242021?style=flat-square&logo=python&logoColor=B1FA63" alt="python" />
@@ -235,7 +235,8 @@ $ python scripts/check-palette.py poster.png
 
 | 版本 | 变化 |
 | --- | --- |
-| **2.0.0** | 可分发：环境自检、跨平台字体、LICENSE |
+| **2.1.0** | 闸门分档（final/draft/baseline）、渲染器补墨色、仓库自检；验收改为可选 |
+| 2.0.0 | 可分发：环境自检、跨平台字体、LICENSE |
 | 1.9.0 | agent 引导式交付；包默认落真实桌面 |
 | 1.8.x | 产物收敛为一份整合 HTML 包；提示词改"一次给 3 版" |
 | 1.7.x | Logo 贴牌；slogan 定案（大写 Dots） |
