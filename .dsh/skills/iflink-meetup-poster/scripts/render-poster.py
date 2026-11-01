@@ -203,7 +203,7 @@ def render(spec, illustration=None):
     sl = "Link the IFs, Connect the Dots"
     d.text((W - MARGIN_X - text_w(d, sl, slogan_f), 52), sl, font=slogan_f, fill=INK)
     # 页眉横线：既压住版面，也保证墨色占比
-    d.line([MARGIN_X, 96, W - MARGIN_X, 96], fill=INK, width=3)
+    d.line([MARGIN_X, 96, W - MARGIN_X, 96], fill=INK, width=9)
 
     # ── 标题组 ──
     t1, t2 = spec["event_name"], spec["kicker"]
@@ -293,7 +293,7 @@ def render(spec, illustration=None):
     d.text((MARGIN_X + 8, y_perks + 68), spec["perks_text"], font=f_pt, fill=INK)
 
     # ── 页脚 ──
-    d.line([MARGIN_X, H - 46, W - MARGIN_X, H - 46], fill=INK, width=2)
+    d.line([MARGIN_X, H - 46, W - MARGIN_X, H - 46], fill=INK, width=9)
     f_foot = F_REG(20)
     d.text((MARGIN_X, H - 38), "IF.Link · Meetup 系列活动", font=f_foot, fill=INK)
     foot_r = spec["date_time"].split("（")[0]

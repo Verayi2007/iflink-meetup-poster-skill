@@ -7,7 +7,7 @@
  *   2) 填表转化      node scripts/new-spec.mjs --from build/intake.md --out build/spec.json
  *   3) 交互问答      node scripts/new-spec.mjs --out build/spec.json
  *
- * 设计原则：所有字段都能留空，留空就落到「安全默认值」，绝不因为用户没填而中断。
+ * 设计原则：配色先选；活动事实必须填写，选填字段采用安全默认值。
  * 零依赖，Node >= 18。
  */
 
