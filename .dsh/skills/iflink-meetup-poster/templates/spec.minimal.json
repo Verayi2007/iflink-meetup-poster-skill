@@ -1,5 +1,7 @@
 {
   "_说明": "空白骨架：把空字符串换成你的活动信息，空着的字段会落到安全默认值。也可以直接跑 node scripts/new-spec.mjs 交互生成。",
+  "theme": "green",
+  "theme_color": "",
   "series": "Meetup",
   "event_name": "",
   "kicker": "",
@@ -8,11 +10,19 @@
   "location": "",
   "guest_section_title": "分享嘉宾 & 主题",
   "guests": [
-    { "name": "", "topic": "", "gender": "female", "hair": "" }
+    {
+      "name": "",
+      "topic": "",
+      "gender": "female",
+      "hair": ""
+    }
   ],
   "perks_title": "小福利",
   "perks_text": "",
-  "illustration": { "scene": "sit-around", "description": "" },
+  "illustration": {
+    "scene": "sit-around",
+    "description": ""
+  },
   "decor": {
     "_说明": "点缀角色：right-bottom 的小角色/小物件，用于呼应本期内容。preset=none 不画；topic 从某位嘉宾的话题里取意象；custom 自己描述。accent_color 是全图唯一允许的非品牌色。",
     "preset": "none",

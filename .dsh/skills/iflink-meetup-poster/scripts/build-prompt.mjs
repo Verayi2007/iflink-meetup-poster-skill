@@ -24,6 +24,34 @@ import { fileURLToPath } from "node:url";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const SKILL_ROOT = path.resolve(HERE, "..");
+const PALETTE_DATA = JSON.parse(await readFile(path.join(SKILL_ROOT, "assets", "palette-presets.json"), "utf8"));
+const THEME_OPTIONS = PALETTE_DATA.presets;
+function themeInfo(spec) {
+  if (spec.theme === "custom") return {label: "自定义色", hex: (spec.theme_color || "").toUpperCase()};
+  return THEME_OPTIONS[spec.theme] ?? THEME_OPTIONS.green;
+}
+function themePrompt(spec) {
+  const {label,hex} = themeInfo(spec);
+  return [
+    `请为 ${spec.event_name} 设计一张 2:3 竖版活动海报，给我三版明显不同的构图。`,
+    `沿用参考图干净的手绘线稿、粗黑描边、平涂色块和充分留白；参考图仅供画风参考，不照搬版式或原有配色。`,
+    `本期已选配色：深黑灰 #242021 + ${label} ${hex}，奶油白 #F6F6F1 作底。${hex} 是唯一大面积强调色，用于标题块、姓名标签和少量插画；不沿用参考图里的绿色。不要再加入其他彩色、渐变、投影或 3D。`,
+    `活动名最醒目，其次是时间地点，再到嘉宾与福利；缩小到手机尺寸仍能读清。`,
+    `文案必须逐字准确，不添加未提供的信息：`,
+    `活动名称：${spec.event_name}`, `主题行：${spec.kicker}`,
+    ...(spec.one_liner ? [`一句话：${spec.one_liner}`] : []),
+    `时间：${spec.date_time}`, `地点：${spec.location}`,
+    ...spec.guests.map(g => `嘉宾：${g.name}｜${g.topic}`),
+    `福利：${spec.perks_text}`,
+    `Slogan：${spec.slogan}`,
+    `官方 Logo 与 slogan 以随包上传的文件为准；不要自行重绘。插画从这期嘉宾的话题取材，不套用参考图的人物或文字。`,
+    `自检姓名、时间、地点、主题色 ${hex} 和手机阅读效果。`
+  ].join("\n");
+}
+function themedRepairs(spec) {
+  const {hex,label} = themeInfo(spec);
+  return `文字错漏：只重绘出错的那一行，其他区域不动。\n配色跑偏：只把错误的彩色改为本期${label} ${hex}；文字和描边仍为 #242021，纸底仍为 #F6F6F1。其他区域不动。\n多出信息：删去未提供的主办方、二维码或参考图旧文案，不补新内容。`;
+}
 
 /* ────────────────────────────── 品牌常量（不可被 spec 覆盖） ────────────────────────────── */
 
@@ -126,6 +154,8 @@ function normalize(raw) {
 
   const spec = {
     series: raw.series ?? "Meetup",
+    theme: raw.theme ?? "green",
+    theme_color: raw.theme_color ?? "",
     event_name: raw.event_name ?? "",
     kicker: raw.kicker ?? "",
     one_liner: raw.one_liner ?? "",
@@ -296,12 +326,12 @@ function validate(spec) {
     warn("W016", "layout_note", "版式补充说明超过 80 字，建议只写一句构图要求");
   }
 
-  /* —— 色彩锁 —— */
-  if (spec.palette) {
-    const ok = typeof spec.palette === "object" && spec.palette.green === BRAND.green && spec.palette.ink === BRAND.ink;
-    if (!ok) err("E030", "palette", `主色锁被修改。本系列固定 荧光绿 ${BRAND.green} + 深黑灰 ${BRAND.ink}，不得覆盖`);
-    else warn("W010", "palette", "spec 里的 palette 与主色锁一致，已忽略（颜色由 SKILL 常量决定）");
-  }
+  /* —— 本期配色 —— */
+  if (!["green", "orange", "purple", "custom"].includes(spec.theme)) err("E030", "theme", "配色只能是 green / orange / purple / custom");
+  if (spec.theme === "custom" && !HEX_RE.test(spec.theme_color)) err("E030", "theme_color", "自定义色需要已确认的 #RRGGBB 色值；请提供已确认色值");
+  if (spec.theme === "custom" && [BRAND.ink, BRAND.cream, BRAND.white].includes(spec.theme_color.toUpperCase())) err("E030", "theme_color", "主色须与黑色、纸底和白色有明显区分");
+  if (spec.palette) warn("W010", "palette", "请改用 theme / theme_color 选择本期配色；旧 palette 对象已忽略");
+  if (spec.theme !== "green" && isStr(spec.decor.accent_color)) err("E066", "decor.accent_color", "非经典绿配色暂不加入第四种彩色，请清空点缀色");
 
   /* —— Slogan —— */
   if (spec.slogan !== BRAND.slogan && !spec.allow_slogan_override) {
@@ -673,6 +703,7 @@ function accentPickText(spec) {
 }
 
 function briefPrompt(spec) {
+  if (spec.theme !== "green") return themePrompt(spec);
   const topicHints = spec.guests
     .map((g) => `「${g.topic}」`)
     .join("、");
@@ -760,6 +791,7 @@ function briefPrompt(spec) {
 
 /** 返修话术：出问题时贴哪一条 */
 function repairScripts(spec) {
+  if (spec.theme !== "green") return themedRepairs(spec);
   return [
     "### ① 有字写错 / 漏字 / 被裁切",
     "```text",
@@ -846,15 +878,15 @@ async function writePromptPack(dir, { spec }) {
     ["G1", "嘉宾", `${spec.guests.length} 位，姓名与话题逐字一致`],
     ["G1", "福利", `逐字等于「${spec.perks_text}」`],
     ["G1", "Slogan", `「${spec.slogan}」`],
-    ["G2", "三色占比", "奶油白 65–75% / 墨色 8–12% / 荧光绿 8–12%"],
-    ["G2", "异色", "点缀色只能是 #FE7733 / #B2A1FF，二选一、≤6%"],
+    ["G2", "主色", `本期 ${themeInfo(spec).label} ${themeInfo(spec).hex} / 黑 ${BRAND.ink} / 纸底 ${BRAND.cream}`],
+    ["G2", "其他彩色", spec.theme === "green" ? "点缀色只能是 #FE7733 / #B2A1FF，二选一、≤6%" : "本期不使用额外点缀色"],
     ["G3", "层级", "缩到手机 1/3，第一眼是活动名"],
     ["G4", "字体", "无衬线、同族、层级清晰"],
     ["G5", "图形语言", "直角块、粗描边、手绘感、无渐变/3D"],
     ["G6", "Logo", "未变形、版本正确、已贴牌"],
   ];
 
-  const html = `<!DOCTYPE html>
+  let html = `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
@@ -941,12 +973,12 @@ async function writePromptPack(dir, { spec }) {
 
 <h2>附：本次规格</h2>
 <ul>
-  <li>画布：${spec.canvas}（2:3）｜配色：${spec.variant === "dark" ? "深色版（黑底白字）" : "浅色版（奶油白底）"}</li>
-  <li>主色锁：<code>#B1FA63</code> / <code>#242021</code> / <code>#F6F6F1</code>${accent ? `｜点缀色：<code>${accent}</code>` : ""}</li>
+  <li>画布：${spec.canvas}（2:3）｜配色：${themeInfo(spec).label} ${themeInfo(spec).hex}，${spec.variant === "dark" ? "深色版（黑底白字）" : "浅色版（奶油白底）"}</li>
+  <li>本期主色：<code>${themeInfo(spec).hex}</code> / <code>#242021</code> / <code>#F6F6F1</code>${accent ? `｜点缀色：<code>${accent}</code>` : ""}</li>
   <li>排版：<strong>不预设</strong>，由模型按内容自行组织</li>
 </ul>
 
-<footer>IF.Link 品牌组 · 生成于 ${new Date().toISOString().slice(0, 10)} · 主色锁 #B1FA63 / #242021</footer>
+<footer>IF.Link · 生成于 ${new Date().toISOString().slice(0, 10)} · 本期配色 ${themeInfo(spec).hex} / #242021</footer>
 </div>
 
 <script>
@@ -970,6 +1002,11 @@ function copyPrompt(){
 </html>`;
 
   const fileName = `${spec.event_name.replace(/[\\/:*?"<>|]/g, "-")}·提示词包.html`;
+  if (spec.theme !== "green") {
+    const {label,hex} = themeInfo(spec);
+    html = html.replaceAll("#B1FA63", hex).replaceAll("荧光绿", label).replaceAll("#DCEFC0", "#E5E4DE").replaceAll("暖橙或淡紫", "其他彩色");
+    html = html.replace("点缀色是不是只用了一种（其他彩色）、有没有跑出色板", "有没有混入未选的其他彩色");
+  }
   await writeFile(path.join(out, fileName), html, "utf8");
   return { dir: out, file: fileName };
 }
@@ -1017,7 +1054,7 @@ function printReport(spec, list) {
     `插画：${spec.illustration.scene} ｜ 点缀角色：${decorLabel} ｜ 主张行：${isStr(spec.one_liner) ? "有" : "无"}`,
   );
   console.log(`版式：${LAYOUT_DEFS[resolveLayout(spec)].label}（spec: ${spec.layout}）`);
-  console.log(`主色锁：${BRAND.green} / ${BRAND.ink} / ${BRAND.cream}  [已锁定]`);
+  console.log(`本期配色：${themeInfo(spec).label} ${themeInfo(spec).hex} / ${BRAND.ink} / ${BRAND.cream}`);
   console.log(line);
 
   if (errors.length === 0 && warns.length === 0) {
@@ -1099,7 +1136,7 @@ async function main() {
 
   const tplPath = path.join(SKILL_ROOT, "assets", "prompt-template.md");
   const template = await readFile(tplPath, "utf8");
-  const rendered = render(template, spec, { generatedAt: nowStamp() });
+  const rendered = spec.theme === "green" ? render(template, spec, { generatedAt: nowStamp() }) : `# ${spec.event_name} 海报提示词包\n\n配色：${themeInfo(spec).label} ${themeInfo(spec).hex} / ${BRAND.ink} / ${BRAND.cream}\n\n## 整版提示词\n\n${themePrompt(spec)}\n\n## 局部修订\n\n${themedRepairs(spec)}\n`;
 
   const outPath = path.resolve(opts.out);
   await mkdir(path.dirname(outPath), { recursive: true });

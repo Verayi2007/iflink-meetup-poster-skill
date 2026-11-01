@@ -1,0 +1,20 @@
+{
+  "source": "https://build-iflink.feishu.cn/wiki/NHTqwDTI5iKljzkdufVcok4Ynne",
+  "note": "社区通用品牌色仍在制定中。以下绿/橙/紫色值来自 IF.Land 2026 活动色板，不自动代表所有 IF.Link 系列的正式品牌色；黄色未在该页给出色值。",
+  "ink": "#242021",
+  "paper": "#F6F6F1",
+  "presets": {
+    "green": {
+      "label": "经典绿",
+      "hex": "#B1FA63"
+    },
+    "orange": {
+      "label": "暖橙",
+      "hex": "#FE7733"
+    },
+    "purple": {
+      "label": "淡紫",
+      "hex": "#B2A1FF"
+    }
+  }
+}

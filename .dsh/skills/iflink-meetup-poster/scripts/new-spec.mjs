@@ -47,6 +47,8 @@ function blankSpec() {
   return {
     _说明: "填完这个文件后跑：node scripts/build-prompt.mjs build/spec.json",
     series: "Meetup",
+    theme: "green",
+    theme_color: "",
     event_name: "",
     kicker: "",
     one_liner: "",
@@ -70,6 +72,8 @@ function blankSpec() {
 /* ────────────────────────────── 填表解析 ────────────────────────────── */
 
 const KEY_MAP = {
+  配色: "theme", 主色: "theme", 主题色: "theme", theme: "theme",
+  主色色值: "theme_color", 主题色色值: "theme_color", theme_color: "theme_color",
   活动名称: "event_name", 名称: "event_name", 活动名: "event_name", event: "event_name", event_name: "event_name",
   主题行: "kicker", 副标题: "kicker", 主题: "kicker", kicker: "kicker",
   一句话: "one_liner", 一句话主张: "one_liner", 主张: "one_liner", one_liner: "one_liner",
@@ -162,7 +166,11 @@ async function parseIntake(file) {
     const field = KEY_MAP[k] ?? KEY_MAP[k.replace(/\s/g, "")];
     if (!field) continue;
 
-    if (field === "illustration_scene") spec.illustration.scene = SCENE_ALIAS[v] ?? v;
+    if (field === "theme") {
+      const v0 = v.toLowerCase();
+      spec.theme = /橙|orange/.test(v0) ? "orange" : /紫|purple/.test(v0) ? "purple" : /自定义|黄|custom/.test(v0) ? "custom" : "green";
+    } else if (field === "theme_color") spec.theme_color = v.toUpperCase();
+    else if (field === "illustration_scene") spec.illustration.scene = SCENE_ALIAS[v] ?? v;
     else if (field === "illustration_desc") spec.illustration.description = v;
     else if (field === "decor") {
       const preset = DECOR_ALIAS[v] ?? "custom";
@@ -199,26 +207,48 @@ async function interactive(outPath) {
     const ans = (await rl.question(`${q} ${suffix}：`)).trim();
     return ans || def;
   };
+  const askRequired = async (q) => {
+    while (true) {
+      const ans = (await rl.question(`${q}（必填）：`)).trim();
+      if (ans) return ans;
+      console.log("这项会出现在海报上，请填写或退出后改用草稿模式。");
+    }
+  };
 
   try {
-    console.log("\nIF.Link Meetup 海报 · 活动信息采集（全部可留空，回车跳过）\n");
+    console.log("\nIF.Link Meetup 海报 · 活动信息采集（上版信息请按实际填写）\n");
 
     const spec = blankSpec();
     delete spec._说明;
 
-    spec.event_name = await ask("① 活动名称", "IF.Link Meetup");
-    spec.kicker = await ask("② 主题行（用 × 连接关键词）", "AI × 创作 × 交流");
-    spec.date_time = await ask("③ 活动时间", "11 月 14 日（周五）晚 19:00–21:00");
-    spec.location = await ask("④ 活动地点", "东南大学九龙湖校区纪忠楼 2 楼");
+    console.log("先选这期的主色。绿 / 橙 / 紫来自规范页的 IF.Land 2026 活动色板。\n");
+    const themes = {"1":"green","2":"orange","3":"purple","4":"custom",green:"green",orange:"orange",purple:"purple",custom:"custom",绿:"green",橙:"orange",紫:"purple"};
+    let themeAnswer;
+    do {
+      themeAnswer = (await ask("配色（1 经典绿 / 2 暖橙 / 3 淡紫 / 4 自定义，黑色文字共用）", "1")).toLowerCase();
+      if (!themes[themeAnswer]) console.log("请选择 1–4，或输入绿 / 橙 / 紫 / 自定义。");
+    } while (!themes[themeAnswer]);
+    spec.theme = themes[themeAnswer];
+    if (spec.theme === "custom") {
+      do {
+        spec.theme_color = (await askRequired("自定义主色 HEX（#RRGGBB）")).toUpperCase();
+        if (!/^#[0-9A-F]{6}$/.test(spec.theme_color)) console.log("请填写准确的 #RRGGBB 色值。");
+      } while (!/^#[0-9A-F]{6}$/.test(spec.theme_color));
+    }
+    console.log("\n接下来填写活动信息。\n");
+    spec.event_name = await askRequired("① 活动名称");
+    spec.kicker = await askRequired("② 主题行（用 × 连接关键词）");
+    spec.date_time = await askRequired("③ 活动时间");
+    spec.location = await askRequired("④ 活动地点");
     spec.one_liner = await ask("⑤ 一句话主张（可空，空了就不放这一行）", "");
 
     console.log("\n⑥ 分享嘉宾（留空姓名结束录入）");
     spec.guests = [];
     for (let i = 1; i <= 6; i++) {
-      const name = await ask(`   嘉宾 ${i} 姓名`, "");
+      const name = i === 1 ? await askRequired("   嘉宾 1 姓名") : await ask(`   嘉宾 ${i} 姓名`, "");
       if (!name) break;
       const genderRaw = await ask("      性别（男/女/不限）", "不限");
-      const topic = await ask("      分享主题", "");
+      const topic = await askRequired("      分享主题");
       const hair = await ask("      发型/配饰（用于头像，可空）", "");
       spec.guests.push({
         name,
@@ -227,10 +257,8 @@ async function interactive(outPath) {
         hair,
       });
     }
-    if (spec.guests.length === 0) spec.guests.push({ name: "", topic: "", gender: "other", hair: "" });
-
     spec.perks_title = await ask("⑦ 福利区标题", "小福利");
-    spec.perks_text = await ask("⑧ 福利一句话", "到场有好吃好喝茶歇等着你");
+    spec.perks_text = await askRequired("⑧ 福利一句话");
 
     const scene = await ask("⑨ 右侧插画场景（围坐/白板/协作/无/自定义）", "围坐");
     spec.illustration.scene = SCENE_ALIAS[scene] ?? "sit-around";
@@ -250,7 +278,7 @@ async function interactive(outPath) {
         DECOR_ALIAS[decorChoice] ? await ask("   长什么样", "") : decorChoice;
     }
     if (decorPreset !== "none") {
-      spec.decor.accent_color = await ask("   点缀色 HEX（全图唯一允许的非品牌色，可空）", "");
+      if (spec.theme === "green") spec.decor.accent_color = await ask("   点缀色 HEX（只选 #FE7733 或 #B2A1FF，可空）", "");
       spec.decor.props = await ask("   道具（可空）", "");
     }
 
