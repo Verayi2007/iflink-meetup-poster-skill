@@ -130,7 +130,7 @@ def avatar(d, cx, cy, r, gender="other", hair=""):
     d._image.paste(out, (int(cx - r - 4), int(cy - r - 4)), out)
 
 
-def brush_block(d, box, color=GREEN, tooth=3):
+def brush_block(d, box, color=None, tooth=3):
     """毛边笔刷块：用轻微不规则的多边形模拟马克笔痕"""
     x0, y0, x1, y1 = box
     pts = []
@@ -143,7 +143,7 @@ def brush_block(d, box, color=GREEN, tooth=3):
         x = x1 - (x1 - x0) * i / steps
         y = y1 + math.sin(i * 2.1 + 1.3) * tooth * 0.5
         pts.append((x, y))
-    d.polygon(pts, fill=color)
+    d.polygon(pts, fill=color or GREEN)
 
 
 def draw_camera_decor(img, box, accent):
@@ -192,7 +192,7 @@ def render(spec, illustration=None):
     d = ImageDraw.Draw(img)
     # 点缀色：spec 没填时，从色板里按活动名哈希确定性挑一个（每期不同，可复现）
     palette = ["#FE7733", "#B2A1FF"]
-    pick = spec.get("decor", {}).get("accent_color") or palette[sum(map(ord, spec.get("event_name", ""))) % 2]
+    pick = (spec.get("theme_color") if spec.get("theme") == "custom" else {"orange": "#FE7733", "purple": "#B2A1FF"}.get(spec.get("theme"))) if spec.get("theme", "green") != "green" else (spec.get("decor", {}).get("accent_color") or palette[sum(map(ord, spec.get("event_name", ""))) % 2])
     accent = pick
     accent = tuple(int(accent[i:i + 2], 16) for i in (1, 3, 5))
 
@@ -203,7 +203,7 @@ def render(spec, illustration=None):
     sl = "Link the IFs, Connect the Dots"
     d.text((W - MARGIN_X - text_w(d, sl, slogan_f), 52), sl, font=slogan_f, fill=INK)
     # 页眉横线：既压住版面，也保证墨色占比
-    d.line([MARGIN_X, 96, W - MARGIN_X, 96], fill=INK, width=3)
+    d.line([MARGIN_X, 96, W - MARGIN_X, 96], fill=INK, width=9)
 
     # ── 标题组 ──
     t1, t2 = spec["event_name"], spec["kicker"]
@@ -281,7 +281,7 @@ def render(spec, illustration=None):
         f_ph = F_REG(20)
         for i, line in enumerate(["插画位", "（此处贴当期 AI 插画）"]):
             d.text((ix0 + (ix1 - ix0 - text_w(d, line, f_ph)) / 2,
-                    iy0 + (iy1 - iy0) / 2 - 20 + i * 30), line, font=f_ph, fill=(180, 190, 170))
+                    iy0 + (iy1 - iy0) / 2 - 20 + i * 30), line, font=f_ph, fill=(160, 160, 160))
 
     # ── 福利笔刷块 ──
     y_perks = H - 330
@@ -293,7 +293,7 @@ def render(spec, illustration=None):
     d.text((MARGIN_X + 8, y_perks + 68), spec["perks_text"], font=f_pt, fill=INK)
 
     # ── 页脚 ──
-    d.line([MARGIN_X, H - 46, W - MARGIN_X, H - 46], fill=INK, width=2)
+    d.line([MARGIN_X, H - 46, W - MARGIN_X, H - 46], fill=INK, width=9)
     f_foot = F_REG(20)
     d.text((MARGIN_X, H - 38), "IF.Link · Meetup 系列活动", font=f_foot, fill=INK)
     foot_r = spec["date_time"].split("（")[0]
@@ -314,6 +314,14 @@ def main():
     args = ap.parse_args()
 
     spec = json.loads(open(args.spec, encoding="utf-8-sig").read())
+    theme = spec.get("theme", "green")
+    colors = {"green": "#B1FA63", "orange": "#FE7733", "purple": "#B2A1FF"}
+    chosen = spec.get("theme_color", "") if theme == "custom" else colors.get(theme)
+    if not chosen or not __import__("re").fullmatch(r"#[0-9A-Fa-f]{6}", chosen):
+        ap.error("theme 需为 green/orange/purple，custom 还需 theme_color #RRGGBB")
+    global GREEN, DIVIDER
+    GREEN = tuple(int(chosen[i:i+2], 16) for i in (1,3,5))
+    if theme != "green": DIVIDER = (229, 228, 222)
     img = render(spec, args.illustration)
     os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)
     img.save(args.out, "PNG")

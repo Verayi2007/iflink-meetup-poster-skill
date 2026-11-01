@@ -3,15 +3,13 @@
 """
 check-palette.py — IF.Link Meetup 海报「配色闸门」（G2）
 
-判定三层：
-  1. 主色锁：奶油白 / 深黑灰 / 荧光绿 三个主色的面积占比是否落在区间内
-  2. 点缀色：允许 1–2 种非主色，但总面积 ≤ 8%、单色 ≤ 5%（点缀而已，不能抢戏）
-  3. 禁用：参考图橙红 #FE7733 家族 > 3% 判 FAIL（照抄参考图配色的头号翻车点）
+按本期选定的绿、橙、紫或自定义 HEX 测量奶油白、深黑灰与主色的比例。
+--profile final 检查交付图；draft 用于文字层草稿；baseline 用于旧参考基准。
+此脚本用于出现明显配色问题时定位，不强制每张交付图都运行。
 
 用法：
-    python scripts/check-palette.py build/poster.png
-    python scripts/check-palette.py build/poster.png --json build/palette.json
-    python scripts/check-palette.py assets/reference/final-poster.png --debug
+    python scripts/check-palette.py build/poster.png --theme orange --profile final
+    python scripts/check-palette.py build/poster.png --theme custom --custom-hex '#AABBCC'
 
 退出码：0 = PASS（可含 WARN）；1 = FAIL；2 = 用法/IO 错误
 依赖：Pillow（numpy 可选，装了更快）
@@ -199,6 +197,8 @@ def hue_name(deg):
 def main():
     ap = argparse.ArgumentParser(description="IF.Link 海报配色闸门 G2")
     ap.add_argument("image", help="待检海报 PNG/JPG")
+    ap.add_argument("--theme", choices=["green", "orange", "purple", "custom"], default="green", help="本期配色，默认经典绿")
+    ap.add_argument("--custom-hex", help="--theme custom 时的主色 #RRGGBB")
     ap.add_argument("--json", dest="json_out", help="输出 JSON 报告")
     ap.add_argument("--debug", action="store_true", help="打印完整色相分布与采样点")
     ap.add_argument("--max-side", type=int, default=900, help="分析前等比缩到的最长边（默认 900）")
@@ -209,6 +209,18 @@ def main():
         help="final=交付图（默认，严格）｜draft=文字层草稿（跳过点缀色板）｜baseline=仓库参考基准（旧色板，板外色只告警）",
     )
     args = ap.parse_args()
+
+    options = {"green": ("#B1FA63", "经典绿"), "orange": ("#FE7733", "暖橙"), "purple": ("#B2A1FF", "淡紫")}
+    if args.theme == "custom":
+        if not args.custom_hex or not __import__("re").fullmatch(r"#[0-9A-Fa-f]{6}", args.custom_hex):
+            ap.error("自定义配色必须提供 --custom-hex #RRGGBB")
+        options["custom"] = (args.custom_hex.upper(), "自定义主色")
+    primary_hex, primary_name = options[args.theme]
+    CORE["green"] = (primary_hex, tuple(int(primary_hex[i:i+2], 16) for i in (1,3,5)), primary_name)
+    if args.theme != "green":
+        CORE["divider"] = ("#E5E4DE", (229, 228, 222), "浅灰分隔")
+    global ACCENT_PALETTE
+    ACCENT_PALETTE = [] if args.theme != "green" else [(h, round(_hex_hue(h), 1), n) for h, n in ACCENT_HEXES]
 
     if not os.path.isfile(args.image):
         print(f"✖ 找不到文件：{args.image}", file=sys.stderr)
@@ -237,7 +249,7 @@ def main():
             dev = "偏低" if v < lo else "偏高"
             fails.append(f"{label:<7} {v:5.1f}%  区间 {lo:.0f}–{hi:.0f}%  → {dev}")
             if key == "green" and v > hi:
-                warns.append("荧光绿超量：绿已从「点睛」变「糊墙」，建议把绿收回到 16% 以内。")
+                warns.append(f"{primary_name}超量：主色已从重点变成大面积铺色，建议收回到 {hi:.0f}% 以内。")
 
     lo, hi = GATES["white"]
     if shares["white"] <= hi:
@@ -262,6 +274,9 @@ def main():
 
     if args.profile == "draft":
         warns.append(f"草稿模式：跳过点缀色板校验（当前 {top_txt}）。渲染通道只解决文字层，不作为交付验收依据。")
+    elif args.theme != "green" and accent_total >= 0.5:
+        msg = f"本期 {primary_name} 配色不允许额外彩色：发现 {accent_total:.1f}%"
+        (warns if args.profile == "baseline" else fails).append(msg)
     elif off_share > OFF_PALETTE_MAX:
         msg = (
             f"{'点缀色合规':<7} 板外异色 {off_share:5.1f}%  上限 {OFF_PALETTE_MAX:.1f}%  "
@@ -276,7 +291,7 @@ def main():
     else:
         oks.append(f"{'点缀色合规':<7} 未使用点缀色（允许）")
 
-    if not used_active and accent_total < 0.5:
+    if args.theme == "green" and not used_active and accent_total < 0.5:
         warns.append("没有任何点缀色：想加就指定 #FE7733 或 #B2A1FF，由模型按内容气质挑一个。")
     elif len(used_active) > 1:
         warns.append("同时出现了暖橙和淡紫 —— 点缀色只能二选一。")
@@ -299,7 +314,7 @@ def main():
     verdict = "FAIL" if fails else ("WARN" if warns else "PASS")
     icon = {"PASS": "✅", "WARN": "⚠️", "FAIL": "❌"}[verdict]
     profile_note = {"final": "交付图", "draft": "文字层草稿（不作交付依据）", "baseline": "仓库参考基准（旧色板）"}[args.profile]
-    print(f"{icon} 判定：{verdict}   ［{profile_note}］主色三色占比是硬指标；点缀色只能是 #FE7733 或 #B2A1FF，二选一，≤6%")
+    print(f"{icon} 判定：{verdict}   ［{profile_note}］本期主色 {primary_name} {primary_hex}；按所选主题验色")
 
     if args.debug:
         print(line)
