@@ -17,7 +17,10 @@ function Step($name, $block) {
 Step "版本号一致性" {
     $v = (Select-String -Path (Join-Path $sk "SKILL.md") -Pattern 'version:\s*"([0-9]+\.[0-9]+\.[0-9]+)"').Matches[0].Groups[1].Value
     if (-not $v) { throw "SKILL.md 缺少 metadata.version" }
-    if (-not (Select-String -Path (Join-Path $root "README.md") -Pattern ([regex]::Escape($v)) -Quiet)) { throw "README 徽章版本 $v 与 SKILL.md 不一致" }
+    # 徽章 URL 里连字符会写成 --（shields 转义），两种形式都认
+    $readme = Get-Content (Join-Path $root "README.md") -Raw -Encoding UTF8
+    $vBadge = $v -replace "-", "--"
+    if (-not ($readme.Contains($v) -or $readme.Contains($vBadge))) { throw "README 徽章版本 $v 与 SKILL.md 不一致" }
     Write-Host "   version=$v" -ForegroundColor DarkGray
 }
 
